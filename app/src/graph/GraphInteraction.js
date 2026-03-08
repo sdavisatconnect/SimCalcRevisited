@@ -145,8 +145,10 @@ export class GraphInteractionManager {
     if (graphEntry.type === 'position') {
       this._handleAppendPositionSegment(actor, dropV);
     } else if (graphEntry.type === 'velocity') {
-      if (parsed.tool === 'add-ramp') {
-        this._handleAppendVelocityRamp(actor, dropV);
+      if (parsed.tool === 'add-ramp-up') {
+        this._handleAppendVelocityRamp(actor, dropV, 'up');
+      } else if (parsed.tool === 'add-ramp-down') {
+        this._handleAppendVelocityRamp(actor, dropV, 'down');
       } else {
         this._handleAppendVelocitySegment(actor, dropV);
       }
@@ -179,10 +181,11 @@ export class GraphInteractionManager {
 
   /**
    * Append a 1-second sloped velocity segment (ramp).
-   * Velocity ramps linearly from the previous ending velocity to dropV.
-   * This creates a segment with constant acceleration = (dropV - vPrev).
+   * direction = 'up' (positive acceleration) or 'down' (negative acceleration).
+   * Both use the same fixed acceleration magnitude of 1 (matching the original
+   * SimCalc 45-degree ramps). Adjust via the acceleration graph after dropping.
    */
-  _handleAppendVelocityRamp(actor, dropV) {
+  _handleAppendVelocityRamp(actor, dropV, direction) {
     const plf = actor.positionFn;
 
     // Get the previous ending velocity
@@ -193,15 +196,18 @@ export class GraphInteractionManager {
       vPrev = vEnd;
     }
 
-    // The ramp goes from vPrev to dropV over 1 second
-    // Average velocity = (vPrev + dropV) / 2
+    // Fixed acceleration magnitude — same for both directions
+    const acceleration = direction === 'up' ? 1 : -1;
+    const endV = vPrev + acceleration;
+
+    // The ramp goes from vPrev to endV over 1 second
+    // Average velocity = (vPrev + endV) / 2
     // Position change = average velocity * duration
-    const deltaPos = (vPrev + dropV) / 2 * 1;
+    const deltaPos = (vPrev + endV) / 2 * 1;
     plf.appendSegment(1, deltaPos);
 
     // Set the acceleration on the new segment
     const newSegIndex = plf.points.length - 2;
-    const acceleration = dropV - vPrev;
     plf.setSegmentAcceleration(newSegIndex, acceleration);
 
     this.bus.emit('actor:edited', { actorId: actor.id });

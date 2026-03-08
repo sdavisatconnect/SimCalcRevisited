@@ -119,6 +119,26 @@ bus.on('world:type-selected', ({ type }) => {
   createPanel('world');
 });
 
+// Quick start: create world + graphs + 2 actors, all linked
+bus.on('world:quick-start', ({ type }) => {
+  const colors = ['#e74c3c', '#3498db'];
+  for (let i = 0; i < 2; i++) {
+    const id = 'actor-' + Date.now() + '-' + i;
+    const actor = new Actor({
+      id,
+      name: `Actor ${i + 1}`,
+      color: colors[i],
+      positionFunction: new PiecewiseLinearFunction([{ t: 0, v: 0 }])
+    });
+    sim.addActor(actor);
+  }
+  bus.emit('actors:changed');
+
+  createPanel('world');
+  createPanel('position');
+  createPanel('velocity');
+});
+
 // --- Actor Palette (top bar, actors only) ---
 const palette = new ComponentPalette(document.getElementById('palette-bar'), bus);
 const actorPalette = new ActorPalette(palette.actorContainer, sim, bus);

@@ -77,6 +77,13 @@ export class ComponentPalette {
             installs required.
           </p>
         </div>
+        <div class="about-credit">
+          <img src="assets/davis.jpg" alt="Sarah M. Davis" class="about-credit-photo" onerror="this.style.display='none'"/>
+          <p class="about-credit-text">
+            This website has been created by <strong>Sarah M. Davis</strong>
+            who wishes she had been able to learn from him longer.
+          </p>
+        </div>
       </div>
     `;
 

@@ -99,22 +99,26 @@ export class AnimationWorld {
       ctx.fillText(d + 'm', x, this.groundY + 16);
     }
 
-    // Draw linked actors only
+    // Draw linked actors with depth perspective
+    // Each actor gets its own "lane" — later actors are drawn behind (higher up, slightly smaller)
     const actors = this.linkedActors;
-    const actorPositions = actors.map(a => ({
+    const actorPositions = actors.map((a, i) => ({
       actor: a,
       pos: a.getPositionAt(currentTime),
       vel: a.getVelocityAt(currentTime),
+      lane: i,
     }));
-    for (let i = 0; i < actorPositions.length; i++) {
-      const { actor, pos, vel } = actorPositions[i];
-      let screenX = this.posToScreenX(pos);
-      for (let j = 0; j < i; j++) {
-        const otherX = this.posToScreenX(actorPositions[j].pos);
-        if (Math.abs(screenX - otherX) < 24) {
-          screenX += (i - j) * 24;
-        }
-      }
+
+    // Depth lanes: each lane is offset up and scaled down for perspective
+    const laneOffset = 14;   // pixels higher per lane
+    const laneScale = 0.12;  // scale reduction per lane
+
+    // Draw back-to-front (highest lane first so front actors overlap rear ones)
+    const sorted = [...actorPositions].sort((a, b) => b.lane - a.lane);
+    for (const { actor, pos, vel, lane } of sorted) {
+      const screenX = this.posToScreenX(pos);
+      const depthScale = 1 - lane * laneScale;
+      const depthGroundY = this.groundY - lane * laneOffset;
 
       // Determine facing direction and walk cycle phase from velocity
       let motion = null;
@@ -125,7 +129,7 @@ export class AnimationWorld {
         motion = { facing, walkPhase };
       }
 
-      drawCharacter(ctx, screenX, this.groundY, actor.color, actor.name, 1, motion);
+      drawCharacter(ctx, screenX, depthGroundY, actor.color, actor.name, depthScale, motion);
     }
 
     // Time display

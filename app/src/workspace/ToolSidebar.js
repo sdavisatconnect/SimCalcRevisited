@@ -25,10 +25,17 @@ const ICONS = {
     <line x1="14.5" y1="8" x2="19.5" y2="8" stroke="#16213e" stroke-width="1.5"/>
   </svg>`,
 
-  velRamp: `<svg viewBox="0 0 24 16" width="22" height="16">
+  velRampUp: `<svg viewBox="0 0 24 16" width="22" height="16">
     <text x="0" y="13" font-size="12" font-weight="700" fill="currentColor" font-family="sans-serif">V</text>
     <line x1="12" y1="13" x2="22" y2="3" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
     <polygon points="12,16 12,13 22,3 22,16" fill="currentColor" opacity="0.2"/>
+    <circle cx="17" cy="8" r="3" fill="currentColor"/>
+  </svg>`,
+
+  velRampDown: `<svg viewBox="0 0 24 16" width="22" height="16">
+    <text x="0" y="13" font-size="12" font-weight="700" fill="currentColor" font-family="sans-serif">V</text>
+    <line x1="12" y1="3" x2="22" y2="13" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+    <polygon points="12,16 12,3 22,13 22,16" fill="currentColor" opacity="0.2"/>
     <circle cx="17" cy="8" r="3" fill="currentColor"/>
   </svg>`,
 
@@ -61,11 +68,18 @@ const DRAGGABLE_TOOLS = [
     label: 'Add Segment',
   },
   {
-    tool: 'add-ramp',
+    tool: 'add-ramp-up',
     targetGraphType: 'velocity',
-    svg: ICONS.velRamp,
-    tooltip: 'Drag to Velocity graph (sloped)',
-    label: 'Add Ramp',
+    svg: ICONS.velRampUp,
+    tooltip: 'Drag to Velocity graph (accelerate)',
+    label: 'Ramp Up',
+  },
+  {
+    tool: 'add-ramp-down',
+    targetGraphType: 'velocity',
+    svg: ICONS.velRampDown,
+    tooltip: 'Drag to Velocity graph (decelerate)',
+    label: 'Ramp Down',
   },
 ];
 
@@ -319,8 +333,8 @@ export class ToolSidebar {
     } else if (type === 'velocity') {
       this.helpContent.innerHTML = `
         <div class="tip"><b>Pointer:</b> Drag bars to change</div>
-        <div class="tip"><b>Add:</b> Drag "Add Segment" for constant</div>
-        <div class="tip"><b>Add:</b> Drag "Add Ramp" for sloped</div>
+        <div class="tip"><b>Add:</b> Drag segment for constant</div>
+        <div class="tip"><b>Ramps:</b> Up = accelerate, Down = decelerate</div>
         <div class="tip"><b>Eraser:</b> Click a segment to merge</div>
       `;
     } else if (type === 'acceleration') {

@@ -436,6 +436,36 @@ body {
   color: #8ab4f8;
 }
 
+/* About page credit section */
+.about-credit {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-top: 1px solid #0f3460;
+  padding-top: 16px;
+  margin-top: 4px;
+}
+
+.about-credit-photo {
+  width: 90px;
+  height: auto;
+  border-radius: 8px;
+  border: 2px solid #0f3460;
+  flex-shrink: 0;
+}
+
+.about-credit-text {
+  font-size: 13px;
+  color: #bbc;
+  line-height: 1.6;
+  font-style: italic;
+}
+
+.about-credit-text strong {
+  color: #dde;
+  font-style: normal;
+}
+
 /* ===== Panels ===== */
 .panel {
   position: absolute;
@@ -998,6 +1028,34 @@ body {
   font-size: 11px;
   color: #889;
   line-height: 1.3;
+}
+
+/* World option column wrapper (button + quickstart) */
+.world-option-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Quick start button */
+.world-option-quickstart {
+  background: transparent;
+  border: 1px dashed #3498db66;
+  color: #8ab4f8;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 11px;
+  cursor: pointer;
+  width: 160px;
+  text-align: center;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+
+.world-option-quickstart:hover {
+  border-color: #3498db;
+  color: #fff;
+  background: rgba(52, 152, 219, 0.15);
 }
 
 .world-option-badge {

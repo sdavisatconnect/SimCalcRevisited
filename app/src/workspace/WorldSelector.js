@@ -33,25 +33,31 @@ export class WorldSelector {
     const options = document.createElement('div');
     options.className = 'world-selector-options';
 
-    // Horizontal world option
-    const hBtn = this._createOption({
+    // Horizontal world column (main button + quick start)
+    const hCol = document.createElement('div');
+    hCol.className = 'world-option-column';
+    hCol.appendChild(this._createOption({
       type: 'horizontal',
       icon: '\u{1F6B6}',
       label: 'Horizontal World',
       description: 'Characters walk along a track',
       enabled: true,
-    });
-    options.appendChild(hBtn);
+    }));
+    hCol.appendChild(this._createQuickStart('horizontal', 'Horizontal World Quickstart'));
+    options.appendChild(hCol);
 
-    // Vertical world option
-    const vBtn = this._createOption({
+    // Vertical world column (main button + quick start)
+    const vCol = document.createElement('div');
+    vCol.className = 'world-option-column';
+    vCol.appendChild(this._createOption({
       type: 'vertical',
       icon: '\u{1F6D7}',
       label: 'Vertical World',
       description: 'Elevator moves up and down',
       enabled: true,
-    });
-    options.appendChild(vBtn);
+    }));
+    vCol.appendChild(this._createQuickStart('vertical', 'Vertical World Quickstart'));
+    options.appendChild(vCol);
 
     card.appendChild(options);
     this.el.appendChild(card);
@@ -93,6 +99,18 @@ export class WorldSelector {
       });
     }
 
+    return btn;
+  }
+
+  _createQuickStart(type, label) {
+    const btn = document.createElement('button');
+    btn.className = 'world-option-quickstart';
+    btn.textContent = label;
+    btn.addEventListener('click', () => {
+      this.sim.worldType = type;
+      this.bus.emit('world:quick-start', { type });
+      this.dismiss();
+    });
     return btn;
   }
 
