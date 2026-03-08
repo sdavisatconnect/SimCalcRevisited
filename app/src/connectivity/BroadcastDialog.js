@@ -143,6 +143,54 @@ export class BroadcastDialog {
     btnRow.appendChild(broadcastBtn);
     card.appendChild(btnRow);
 
+    // --- Practice Mode section ---
+    const practiceDivider = document.createElement('div');
+    practiceDivider.className = 'broadcast-practice-divider';
+    practiceDivider.textContent = 'or';
+    card.appendChild(practiceDivider);
+
+    const practiceSection = document.createElement('div');
+    practiceSection.className = 'broadcast-practice-section';
+
+    const practiceLabel = document.createElement('div');
+    practiceLabel.className = 'broadcast-practice-label';
+    practiceLabel.textContent = 'Practice Mode';
+    practiceSection.appendChild(practiceLabel);
+
+    const practiceDesc = document.createElement('div');
+    practiceDesc.className = 'broadcast-practice-desc';
+    practiceDesc.textContent = 'Generate simulated student responses to practice using the results display.';
+    practiceSection.appendChild(practiceDesc);
+
+    const practiceRow = document.createElement('div');
+    practiceRow.className = 'broadcast-practice-row';
+
+    const countLabel = document.createElement('label');
+    countLabel.className = 'broadcast-practice-count-label';
+    countLabel.textContent = 'Students:';
+
+    const countInput = document.createElement('input');
+    countInput.type = 'number';
+    countInput.className = 'broadcast-practice-count';
+    countInput.min = 2;
+    countInput.max = 30;
+    countInput.value = 10;
+
+    const practiceBtn = document.createElement('button');
+    practiceBtn.className = 'broadcast-btn broadcast-btn-practice';
+    practiceBtn.textContent = '\uD83E\uDDEA Practice';
+    practiceBtn.addEventListener('click', () => {
+      const count = Math.max(2, Math.min(30, parseInt(countInput.value) || 10));
+      this._dismiss({ practiceMode: true, practiceCount: count });
+    });
+
+    practiceRow.appendChild(countLabel);
+    practiceRow.appendChild(countInput);
+    practiceRow.appendChild(practiceBtn);
+    practiceSection.appendChild(practiceRow);
+
+    card.appendChild(practiceSection);
+
     this.el.appendChild(card);
     document.body.appendChild(this.el);
 

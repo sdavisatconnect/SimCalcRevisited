@@ -22,6 +22,7 @@ import { JoinDialog } from './src/connectivity/JoinDialog.js';
 import { ChallengeMode } from './src/connectivity/ChallengeMode.js';
 import { StudentSubmitter } from './src/connectivity/StudentSubmitter.js';
 import { ResultsViewController } from './src/connectivity/ResultsViewController.js';
+import { PracticeDataGenerator } from './src/connectivity/PracticeDataGenerator.js';
 
 // --- Setup ---
 const bus = new EventBus();
@@ -326,6 +327,13 @@ document.getElementById('btn-broadcast').addEventListener('click', async () => {
   const dialog = new BroadcastDialog();
   const settings = await dialog.show(workspace);
   if (!settings) return; // cancelled
+
+  // Practice mode — generate fake submissions locally, skip Firebase
+  if (settings.practiceMode) {
+    const submissions = PracticeDataGenerator.generate(sim, settings.practiceCount);
+    bus.emit('challenge:show-results', { submissions, challengeData: null, roomCode: 'practice' });
+    return;
+  }
 
   try {
     const challengeData = ChallengeSerializer.serializeChallenge(sim, workspace, settings);

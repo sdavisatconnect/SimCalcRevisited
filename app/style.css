@@ -1406,6 +1406,70 @@ body {
   cursor: not-allowed;
 }
 
+/* ===== Practice Mode ===== */
+.broadcast-practice-divider {
+  text-align: center;
+  color: #667;
+  font-size: 12px;
+  margin: 12px 0;
+  position: relative;
+}
+.broadcast-practice-divider::before,
+.broadcast-practice-divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 40%;
+  height: 1px;
+  background: rgba(255,255,255,0.1);
+}
+.broadcast-practice-divider::before { left: 0; }
+.broadcast-practice-divider::after { right: 0; }
+
+.broadcast-practice-section {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 12px;
+}
+.broadcast-practice-label {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+.broadcast-practice-desc {
+  font-size: 11px;
+  color: #889;
+  margin-bottom: 10px;
+}
+.broadcast-practice-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.broadcast-practice-count-label {
+  font-size: 13px;
+  color: #aab;
+}
+.broadcast-practice-count {
+  width: 56px;
+  padding: 4px 6px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 4px;
+  color: #eee;
+  font-size: 13px;
+  text-align: center;
+}
+.broadcast-btn-practice {
+  background: #27ae60;
+  color: #fff;
+  margin-left: auto;
+}
+.broadcast-btn-practice:hover {
+  background: #2ecc71;
+}
+
 /* ===== Room Code Overlay ===== */
 .roomcode-overlay {
   position: fixed;
