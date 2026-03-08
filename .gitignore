@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+
+# Legacy SimCalc files (reference only, not part of the web app)
+CalculatorMathWorlds/
+JavaMathWorlds/
+images/
+Overview.htm
+FINDER.DAT
+RESOURCE.FRK/
+_notes/
+
+# Claude config
+.claude/
