@@ -1303,6 +1303,15 @@ body {
   gap: 8px;
   padding: 4px 0;
 }
+.broadcast-lock-toggle {
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.broadcast-lock-toggle:hover {
+  background: rgba(255,255,255,0.08);
+}
 
 .broadcast-lock-icon {
   font-size: 16px;

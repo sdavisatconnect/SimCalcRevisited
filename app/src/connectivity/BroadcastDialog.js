@@ -55,7 +55,7 @@ export class BroadcastDialog {
     } else {
       for (const panel of graphPanels) {
         const row = document.createElement('div');
-        row.className = 'broadcast-lock-row';
+        row.className = 'broadcast-lock-row broadcast-lock-toggle';
 
         const icon = document.createElement('span');
         icon.className = 'broadcast-lock-icon';
@@ -75,6 +75,15 @@ export class BroadcastDialog {
         status.className = 'broadcast-lock-status ' + (isLocked ? 'locked' : 'editable');
         status.textContent = isLocked ? 'Locked (view only)' : 'Editable';
 
+        // Click to toggle lock state
+        row.addEventListener('click', () => {
+          panel.component.scalePopover.toggleLock();
+          const nowLocked = panel.component.scalePopover.isLocked;
+          icon.textContent = nowLocked ? '\uD83D\uDD12' : '\uD83D\uDD13';
+          status.textContent = nowLocked ? 'Locked (view only)' : 'Editable';
+          status.className = 'broadcast-lock-status ' + (nowLocked ? 'locked' : 'editable');
+        });
+
         row.appendChild(icon);
         row.appendChild(label);
         row.appendChild(status);
@@ -86,7 +95,7 @@ export class BroadcastDialog {
     // Tip
     const tip = document.createElement('p');
     tip.className = 'broadcast-dialog-tip';
-    tip.textContent = 'Use the lock buttons (\uD83D\uDD12/\uD83D\uDD13) on each graph to change which graphs students can edit before broadcasting.';
+    tip.textContent = 'Click a graph row above to toggle its lock state.';
     card.appendChild(tip);
 
     // Settings section
