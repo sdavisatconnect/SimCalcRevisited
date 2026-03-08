@@ -12,10 +12,26 @@ import { GraphInteractionManager } from './src/graph/GraphInteraction.js';
 import { TimeController } from './src/controls/TimeController.js';
 import { PlaybackControls } from './src/controls/PlaybackControls.js';
 import { TemplateIO } from './src/io/TemplateIO.js';
+import { ChallengeSerializer } from './src/io/ChallengeSerializer.js';
+import { FIREBASE_CONFIG } from './src/connectivity/FirebaseConfig.js';
+import { FirebaseClient } from './src/connectivity/FirebaseClient.js';
+import { RoomManager } from './src/connectivity/RoomManager.js';
+import { BroadcastDialog } from './src/connectivity/BroadcastDialog.js';
+import { RoomCodeOverlay } from './src/connectivity/RoomCodeOverlay.js';
+import { JoinDialog } from './src/connectivity/JoinDialog.js';
+import { ChallengeMode } from './src/connectivity/ChallengeMode.js';
+import { StudentSubmitter } from './src/connectivity/StudentSubmitter.js';
+import { ResultsViewController } from './src/connectivity/ResultsViewController.js';
 
 // --- Setup ---
 const bus = new EventBus();
 const sim = new Simulation();
+
+// --- Firebase Connectivity ---
+const firebaseClient = new FirebaseClient(FIREBASE_CONFIG.databaseURL);
+const roomManager = new RoomManager(firebaseClient);
+let activeRoomCode = null;
+let activePollInterval = null;
 
 // --- Workspace ---
 const workspaceEl = document.getElementById('workspace');
@@ -89,12 +105,22 @@ function resetToBlank() {
   sim.isPlaying = false;
   bus.emit('time:update', { currentTime: 0 });
 
+  // Exit results mode if active
+  if (activeResultsCtrl) {
+    activeResultsCtrl.exitResultsMode();
+    activeResultsCtrl = null;
+  }
+
   // Remove all panels
   const panelsCopy = [...workspace.panels];
   for (const panel of panelsCopy) {
     interactionMgr.unregisterGraph(panel.id);
     workspace.removePanel(panel);
   }
+
+  // Clean up any leftover results panel elements
+  const leftoverResults = workspaceEl.querySelectorAll('.results-panel');
+  for (const el of leftoverResults) el.remove();
 
   // Remove all actors
   sim.actors = [];
@@ -105,6 +131,18 @@ function resetToBlank() {
   sim.playbackSpeed = 1.0;
   speedSlider.value = 1;
   speedValue.textContent = '1\u00D7';
+
+  // Reset challenge mode flags
+  bus._challengeBlockPanels = false;
+  activeChallengeMode = null;
+  activeSubmitter = null;
+
+  // Restore sidebar to default
+  toolSidebar.restore();
+
+  // Show broadcast button (may have been hidden in student mode)
+  const broadcastBtn = document.getElementById('btn-broadcast');
+  if (broadcastBtn) broadcastBtn.style.display = '';
 
   // Show world selector overlay again
   new WorldSelector(workspaceEl, sim, bus);
@@ -211,6 +249,8 @@ bus.on('actor:removed', ({ actorId }) => {
 
 // Panel creation from sidebar click or drag
 bus.on('panel:create-request', ({ type, x, y }) => {
+  // Block panel creation in challenge mode if teacher disabled it
+  if (bus._challengeBlockPanels) return;
   spawnOffset = (spawnOffset + 30) % 150;
   createPanel(type, {
     x: x ?? 50 + spawnOffset,
@@ -273,6 +313,134 @@ document.getElementById('btn-load').addEventListener('click', async () => {
   // Update speed slider to match loaded state
   speedSlider.value = sim.playbackSpeed;
   speedValue.textContent = sim.playbackSpeed + '\u00D7';
+});
+
+// --- Broadcast Challenge ---
+document.getElementById('btn-broadcast').addEventListener('click', async () => {
+  // Must have a world type and at least one panel
+  if (!sim.worldType) {
+    alert('Set up a world and graphs before broadcasting.');
+    return;
+  }
+
+  const dialog = new BroadcastDialog();
+  const settings = await dialog.show(workspace);
+  if (!settings) return; // cancelled
+
+  try {
+    const challengeData = ChallengeSerializer.serializeChallenge(sim, workspace, settings);
+    const roomCode = await roomManager.createRoom(challengeData, settings);
+    activeRoomCode = roomCode;
+
+    const overlay = new RoomCodeOverlay();
+    overlay.show(
+      roomCode,
+      // Show Results callback
+      async () => {
+        if (activePollInterval) {
+          clearInterval(activePollInterval);
+          activePollInterval = null;
+        }
+        const submissions = await roomManager.getSubmissions(roomCode);
+        bus.emit('challenge:show-results', { submissions, challengeData, roomCode });
+      },
+      // Cancel callback
+      () => {
+        if (activePollInterval) {
+          clearInterval(activePollInterval);
+          activePollInterval = null;
+        }
+        activeRoomCode = null;
+      }
+    );
+
+    // Poll for submission count every 7 seconds
+    activePollInterval = setInterval(async () => {
+      try {
+        const count = await roomManager.getSubmissionCount(roomCode);
+        overlay.updateSubmissionCount(count);
+      } catch (e) {
+        console.warn('Polling error:', e);
+      }
+    }, 7000);
+
+  } catch (err) {
+    console.error('Failed to broadcast challenge:', err);
+    alert('Failed to broadcast. Check your connection and try again.');
+  }
+});
+
+// --- Student Join Challenge ---
+let activeChallengeMode = null;
+let activeSubmitter = null;
+
+bus.on('challenge:join-request', async () => {
+  const joinDialog = new JoinDialog();
+  const result = await joinDialog.show();
+  if (!result) {
+    // Cancelled — show world selector again
+    new WorldSelector(workspaceEl, sim, bus);
+    return;
+  }
+
+  const { roomCode, initials, challengeData, settings } = result;
+
+  // Reconstruct the challenge workspace
+  TemplateIO.reconstruct(challengeData, sim, workspace, panelFactory, interactionMgr, bus, createPanel);
+
+  // Update speed slider to match
+  speedSlider.value = sim.playbackSpeed;
+  speedValue.textContent = sim.playbackSpeed + '\u00D7';
+
+  // Activate challenge mode (locks, restrictions, submit button)
+  activeChallengeMode = new ChallengeMode(bus, workspace, sim);
+  activeChallengeMode.activate(challengeData, settings, initials, roomCode);
+
+  // Create student submitter
+  const studentId = `${initials}-${Date.now()}`;
+  activeSubmitter = new StudentSubmitter(firebaseClient, roomCode, studentId, initials);
+
+  // Wire up the submit button
+  const submitBtn = activeChallengeMode.getSubmitButton();
+  if (submitBtn) {
+    submitBtn.addEventListener('click', async () => {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting...';
+      try {
+        await activeSubmitter.submit(sim);
+        submitBtn.textContent = activeSubmitter.version > 1 ? 'Resubmitted \u2713' : 'Submitted \u2713';
+        submitBtn.classList.add('submit-success');
+        setTimeout(() => {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Resubmit';
+          submitBtn.classList.remove('submit-success');
+        }, 2000);
+      } catch (err) {
+        console.error('Submit failed:', err);
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit (retry)';
+        submitBtn.classList.add('submit-error');
+        setTimeout(() => submitBtn.classList.remove('submit-error'), 2000);
+      }
+    });
+  }
+
+  // Hide broadcast button in student mode
+  const broadcastBtn = document.getElementById('btn-broadcast');
+  if (broadcastBtn) broadcastBtn.style.display = 'none';
+});
+
+// --- Teacher Results Display ---
+let activeResultsCtrl = null;
+
+bus.on('challenge:show-results', ({ submissions, challengeData, roomCode }) => {
+  if (!submissions) {
+    alert('No submissions yet.');
+    return;
+  }
+
+  activeResultsCtrl = new ResultsViewController(bus, workspace, sim, createPanel, interactionMgr);
+  activeResultsCtrl.enterResultsMode(submissions);
 });
 
 // Initial time cursors

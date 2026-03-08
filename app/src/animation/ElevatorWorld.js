@@ -47,7 +47,10 @@ export class ElevatorWorld {
     this.labelWidth = 36;
     this.buildingTop = this.displayHeight * 0.06;
     this.buildingBottom = this.displayHeight * 0.92;
-    this.shaftWidth = 56;
+    // Dynamic shaft width for many actors (results mode with 30+ students)
+    const numActors = Math.max(this.linkedActors.length, 1);
+    const availW = this.displayWidth - this.labelWidth - 20;
+    this.shaftWidth = Math.max(16, Math.min(56, Math.floor(availW / numActors) - 4));
 
     this.drawFrame(this.sim.currentTime);
   }
@@ -181,7 +184,9 @@ export class ElevatorWorld {
       ctx.fillRect(carLeft, carTop, carW, carH);
 
       // Character standing inside the car (on the car floor)
-      drawCharacter(ctx, cx, carY, actor.color, actor.name, 0.55);
+      // Dynamic scale: smaller when many actors
+      const charScale = n > 10 ? Math.max(0.2, 0.55 * (10 / n)) : 0.55;
+      drawCharacter(ctx, cx, carY, actor.color, actor.name, charScale);
 
       // Car frame — outer walls, ceiling, floor
       ctx.strokeStyle = actor.color;

@@ -43,9 +43,10 @@ export class TemplateIO {
           collapsed: panel._collapsed,
         };
 
-        // Save custom graph ranges if component has a scalePopover
+        // Save custom graph ranges and lock state if component has a scalePopover
         if (panel.component && panel.component.scalePopover) {
           panelData.customRanges = panel.component.scalePopover.getRanges();
+          panelData.isLocked = panel.component.scalePopover.isLocked;
         }
 
         return panelData;
@@ -186,6 +187,13 @@ export class TemplateIO {
       // Restore collapsed state
       if (pd.collapsed && !panel._collapsed) {
         panel.toggleCollapse();
+      }
+
+      // Restore lock state
+      if (pd.isLocked && panel.component && panel.component.scalePopover) {
+        if (!panel.component.scalePopover.isLocked) {
+          panel.component.scalePopover.toggleLock();
+        }
       }
     }
 

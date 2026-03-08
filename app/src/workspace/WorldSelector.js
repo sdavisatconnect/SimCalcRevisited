@@ -60,6 +60,23 @@ export class WorldSelector {
     options.appendChild(vCol);
 
     card.appendChild(options);
+
+    // Divider
+    const divider = document.createElement('div');
+    divider.className = 'world-selector-divider';
+    divider.textContent = 'or';
+    card.appendChild(divider);
+
+    // Join a Challenge button
+    const joinBtn = document.createElement('button');
+    joinBtn.className = 'world-option-join';
+    joinBtn.innerHTML = '\uD83D\uDD17 Join a Challenge';
+    joinBtn.addEventListener('click', () => {
+      this.bus.emit('challenge:join-request');
+      this.dismiss();
+    });
+    card.appendChild(joinBtn);
+
     this.el.appendChild(card);
     this.parentEl.appendChild(this.el);
   }

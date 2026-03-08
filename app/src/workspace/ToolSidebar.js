@@ -368,4 +368,9 @@ export class ToolSidebar {
   getActiveTool() {
     return this.activeTool;
   }
+
+  /** Restore sidebar to default state (used when exiting results mode) */
+  restore() {
+    this._build();
+  }
 }

@@ -110,8 +110,10 @@ export class AnimationWorld {
     }));
 
     // Depth lanes: each lane is offset up and scaled down for perspective
-    const laneOffset = 14;   // pixels higher per lane
-    const laneScale = 0.12;  // scale reduction per lane
+    // Dynamic scaling for many actors (30+ students in results mode)
+    const numActors = actors.length;
+    const laneOffset = Math.min(14, 120 / Math.max(numActors, 1));
+    const laneScale = Math.min(0.12, 0.8 / Math.max(numActors, 1));
 
     // Draw back-to-front (highest lane first so front actors overlap rear ones)
     const sorted = [...actorPositions].sort((a, b) => b.lane - a.lane);

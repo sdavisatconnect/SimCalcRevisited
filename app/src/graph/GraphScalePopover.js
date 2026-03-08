@@ -163,8 +163,19 @@ export class GraphScalePopover {
     };
   }
 
+  /** Prevent lock state from being changed (for challenge mode) */
+  setLockImmutable(immutable) {
+    this._lockImmutable = !!immutable;
+  }
+
+  /** Hide the lock toggle button (for students on locked graphs) */
+  hideLockButton() {
+    if (this.lockBtn) this.lockBtn.style.display = 'none';
+  }
+
   /** Toggle the edit lock on this graph */
   toggleLock() {
+    if (this._lockImmutable) return;
     this.isLocked = !this.isLocked;
     this.lockBtn.textContent = this.isLocked ? '\uD83D\uDD12' : '\uD83D\uDD13'; // 🔒 or 🔓
     this.lockBtn.title = this.isLocked ? 'Unlock editing on this graph' : 'Lock editing on this graph';
