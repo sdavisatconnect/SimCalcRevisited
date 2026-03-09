@@ -12,6 +12,7 @@ import { GraphInteractionManager } from './src/graph/GraphInteraction.js';
 import { TimeController } from './src/controls/TimeController.js';
 import { PlaybackControls } from './src/controls/PlaybackControls.js';
 import { TemplateIO } from './src/io/TemplateIO.js';
+import { showImportDialog } from './src/io/VernierImport.js';
 
 // --- Setup ---
 const bus = new EventBus();
@@ -273,6 +274,12 @@ document.getElementById('btn-load').addEventListener('click', async () => {
   // Update speed slider to match loaded state
   speedSlider.value = sim.playbackSpeed;
   speedValue.textContent = sim.playbackSpeed + '\u00D7';
+});
+
+// --- Vernier CSV Import ---
+bus.on('import:request', () => {
+  if (!sim.worldType) return; // need a world set up first
+  showImportDialog(sim, workspace, bus);
 });
 
 // --- Tooltips for toolbar buttons ---

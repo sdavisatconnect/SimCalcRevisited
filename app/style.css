@@ -1482,3 +1482,180 @@ body {
   background: #555;
   cursor: not-allowed;
 }
+
+/* ===== Import Dialog ===== */
+.sidebar-import-btn {
+  border: 1px dashed #0f3460 !important;
+  background: transparent !important;
+  margin-top: 6px;
+}
+.sidebar-import-btn:hover {
+  border-color: #e94560 !important;
+  background: rgba(233, 69, 96, 0.08) !important;
+}
+
+.import-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9000;
+  animation: fadeIn 0.15s;
+}
+.import-overlay.dismissing {
+  animation: fadeOut 0.15s forwards;
+}
+
+.import-card {
+  background: #16213e;
+  border-radius: 12px;
+  padding: 28px 32px;
+  max-width: 440px;
+  width: 90%;
+  position: relative;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  animation: slideUp 0.2s;
+}
+
+.import-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+}
+
+.import-title {
+  font-size: 18px;
+  margin-bottom: 18px;
+  color: #fff;
+}
+
+.import-field {
+  margin-bottom: 14px;
+}
+
+.import-label {
+  display: block;
+  font-size: 12px;
+  color: #aaa;
+  margin-bottom: 5px;
+}
+
+.import-actor-select {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px solid #0f3460;
+  background: #1a1a2e;
+  color: #eee;
+  font-size: 13px;
+}
+
+.import-file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.import-file-btn {
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: 1px solid #0f3460;
+  background: #1a1a2e;
+  color: #e94560;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.import-file-btn:hover {
+  background: #0f3460;
+}
+
+.import-file-name {
+  font-size: 12px;
+  color: #888;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.import-preview {
+  background: #1a1a2e;
+  border: 1px solid #0f3460;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+
+.import-preview-title {
+  font-size: 11px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.import-preview-stats {
+  font-size: 13px;
+  color: #ccc;
+  line-height: 1.6;
+}
+
+.import-error {
+  background: rgba(231, 76, 60, 0.15);
+  border: 1px solid #e74c3c;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #e74c3c;
+  margin-bottom: 14px;
+}
+
+.import-info {
+  font-size: 12px;
+  color: #888;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.import-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.import-cancel-btn {
+  padding: 8px 18px;
+  border-radius: 6px;
+  border: 1px solid #0f3460;
+  background: transparent;
+  color: #aaa;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.import-cancel-btn:hover {
+  background: #0f3460;
+  color: #fff;
+}
+
+.import-confirm-btn {
+  padding: 8px 18px;
+  border-radius: 6px;
+  border: none;
+  background: #e94560;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.import-confirm-btn:hover {
+  background: #c0392b;
+}
+.import-confirm-btn:disabled {
+  background: #555;
+  cursor: not-allowed;
+}
