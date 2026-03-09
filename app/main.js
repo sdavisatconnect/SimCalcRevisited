@@ -24,6 +24,7 @@ import { StudentSubmitter } from './src/connectivity/StudentSubmitter.js';
 import { ResultsViewController } from './src/connectivity/ResultsViewController.js';
 import { PracticeDataGenerator } from './src/connectivity/PracticeDataGenerator.js';
 import { ChallengeAuthorMode } from './src/authoring/ChallengeAuthorMode.js';
+import { showImportDialog } from './src/io/VernierImport.js';
 
 // --- Setup ---
 const bus = new EventBus();
@@ -582,6 +583,12 @@ bus.on('challenge:author-start', ({ type }) => {
 
   activeAuthorMode.enter(type);
   window._authorMode = activeAuthorMode; // debug
+});
+
+// --- Vernier CSV Import ---
+bus.on('import:request', () => {
+  if (!sim.worldType) return; // need a world set up first
+  showImportDialog(sim, workspace, bus);
 });
 
 // --- Tooltips for toolbar buttons ---

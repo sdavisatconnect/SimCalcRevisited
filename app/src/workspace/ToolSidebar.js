@@ -113,6 +113,21 @@ export class ToolSidebar {
       const btn = this._createDraggableComponent(type, icon, label);
       compSection.content.appendChild(btn);
     }
+    // Import CSV button (click-only, not draggable)
+    const importBtn = document.createElement('button');
+    importBtn.className = 'sidebar-tool-btn sidebar-import-btn';
+    importBtn.title = 'Import motion data from a CSV file';
+    const importIcon = document.createElement('span');
+    importIcon.className = 'tool-icon';
+    importIcon.textContent = '\u{1F4C2}';
+    importBtn.appendChild(importIcon);
+    const importLabel = document.createElement('span');
+    importLabel.className = 'tool-label';
+    importLabel.textContent = 'Import CSV';
+    importBtn.appendChild(importLabel);
+    importBtn.addEventListener('click', () => this.bus.emit('import:request'));
+    compSection.content.appendChild(importBtn);
+
     this.container.appendChild(compSection.el);
 
     // --- Edit Tools Section (always visible) ---

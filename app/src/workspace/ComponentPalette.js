@@ -129,6 +129,33 @@ export class ComponentPalette {
           </ul>
         </div>
 
+        <div class="howto-section">
+          <h3>7. Importing Motion Data</h3>
+          <p>
+            You can import real-world motion data from a <strong>Vernier GoDirect Motion
+            Detector</strong> (or any CSV file with time and position columns).
+          </p>
+          <p><strong>Collecting data for SimCalc import:</strong></p>
+          <ul>
+            <li>Use <strong>Vernier Graphical Analysis</strong> to collect position data</li>
+            <li>Recommended: <strong>20 samples/second</strong> for <strong>5&ndash;15 seconds</strong></li>
+            <li>Keep the motion detector <strong>0.25&ndash;3.5m</strong> from the moving object</li>
+            <li>Export as CSV from Graphical Analysis (File &gt; Export &gt; CSV)</li>
+          </ul>
+          <p><strong>To import:</strong></p>
+          <ul>
+            <li>Set up your world and actors first</li>
+            <li>Click <strong>Import CSV</strong> in the Components sidebar</li>
+            <li>Choose which actor receives the data</li>
+            <li>Select your CSV file and click <strong>Import Data</strong></li>
+          </ul>
+          <p>
+            The time range and graph axes will adjust automatically to fit the imported data.
+            The position graph will show the real-world data, and velocity/acceleration will
+            be derived automatically.
+          </p>
+        </div>
+
       </div>
     `;
 
