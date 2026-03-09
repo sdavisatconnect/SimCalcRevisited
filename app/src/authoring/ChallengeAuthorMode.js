@@ -370,8 +370,20 @@ export class ChallengeAuthorMode {
     const wsW = wsRect.width || 600;
     const wsH = wsRect.height || 400;
     const halfW = Math.floor((wsW - 30) / 2);
+    const isVertical = this.sim.worldType === 'vertical';
 
-    const defaults = {
+    // Vertical world: tall narrow panel on left; graphs fill remaining space to the right
+    const vWorldW = 200;
+    const graphLeft = vWorldW + 20;
+    const graphW = Math.floor((wsW - graphLeft - 20) / 2);
+    const halfH = Math.floor((wsH - 30) / 2);
+
+    const defaults = isVertical ? {
+      world:        { x: 10, y: 10, w: vWorldW, h: wsH - 20 },
+      position:     { x: graphLeft, y: 10, w: graphW, h: halfH },
+      velocity:     { x: graphLeft + graphW + 10, y: 10, w: graphW, h: halfH },
+      acceleration: { x: graphLeft, y: halfH + 20, w: graphW, h: halfH },
+    } : {
       world:        { x: 10, y: 10, w: wsW - 20, h: Math.floor(wsH * 0.3) },
       position:     { x: 10, y: Math.floor(wsH * 0.3) + 20, w: halfW, h: Math.floor(wsH * 0.6) },
       velocity:     { x: halfW + 20, y: Math.floor(wsH * 0.3) + 20, w: halfW, h: Math.floor(wsH * 0.6) },
