@@ -3,7 +3,7 @@ export class Simulation {
     this.actors = [];
     this.timeRange = { min: 0, max: 10 };
     this.posRange = { min: -2, max: 20 };
-    this.velRange = { min: -5, max: 8 };
+    this.velRange = { min: -10, max: 10 };
     this.accelRange = { min: -10, max: 10 };
     this.worldType = null; // 'horizontal' or 'vertical' — set by WorldSelector
     this.currentTime = 0;

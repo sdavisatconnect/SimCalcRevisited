@@ -13,7 +13,8 @@ export class VelocityGraph {
       xRange: simulation.timeRange,
       yRange: simulation.velRange,
       xLabel: 'Time (s)',
-      yLabel: 'Velocity (m/s)'
+      yLabel: 'Velocity (m/s)',
+      yMaxTicks: 20
     });
 
     // Scale controls
