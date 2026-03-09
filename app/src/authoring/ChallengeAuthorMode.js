@@ -200,6 +200,13 @@ export class ChallengeAuthorMode {
     topBtns.className = 'author-top-btns';
     topBar.appendChild(topBtns);
 
+    const howToBtn = document.createElement('button');
+    howToBtn.className = 'author-btn';
+    howToBtn.textContent = 'How To';
+    howToBtn.title = 'Challenge authoring guide';
+    howToBtn.addEventListener('click', () => this._showAuthorHowTo());
+    topBtns.appendChild(howToBtn);
+
     const cancelBtn = document.createElement('button');
     cancelBtn.className = 'author-btn author-btn-cancel';
     cancelBtn.textContent = 'Cancel';
@@ -363,6 +370,103 @@ export class ChallengeAuthorMode {
         });
       }
     });
+  }
+
+  _showAuthorHowTo() {
+    if (document.querySelector('.about-overlay')) return;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'about-overlay';
+
+    const card = document.createElement('div');
+    card.className = 'about-card';
+    card.style.maxWidth = '660px';
+
+    card.innerHTML = `
+      <button class="about-close" title="Close">&times;</button>
+      <h2 class="about-title">How To Author a Challenge</h2>
+      <div class="about-text">
+
+        <p style="color:#8ab4f8;font-weight:600;font-size:14px;margin-bottom:4px;">1. Set Up the Scenario</p>
+        <p>
+          When you enter Author Mode you start with two actors:
+          a <strong>Reference</strong> actor (red) and a <strong>Student</strong> actor (green).
+          The Reference actor is what students will see but cannot edit.
+          The Student actor is the template for what each student receives.
+        </p>
+
+        <p style="color:#8ab4f8;font-weight:600;font-size:14px;margin-bottom:4px;">2. Build the Reference Motion</p>
+        <p>
+          Use the graph tools (drag points, add velocity segments) on the <strong>Position</strong>
+          or <strong>Velocity</strong> graph to create the motion you want students to match or
+          respond to. You can add more reference actors with the <strong>+</strong> button in the
+          top bar.
+        </p>
+
+        <p style="color:#8ab4f8;font-weight:600;font-size:14px;margin-bottom:4px;">3. Set Up the Student Template</p>
+        <p>
+          Edit the <strong>Student</strong> actor to define the starting motion students will see.
+          You might leave it flat (at zero) so students build from scratch, or give them a
+          partial solution to complete.
+        </p>
+
+        <p style="color:#8ab4f8;font-weight:600;font-size:14px;margin-bottom:4px;">4. Configure the Challenge</p>
+        <p>
+          Use the <strong>right-side config panel</strong> to control what students see and can do:
+        </p>
+        <ul style="margin:4px 0 12px 18px;font-size:13px;color:#bbc;line-height:1.7;">
+          <li><strong>Challenge Title</strong> &mdash; give your challenge a descriptive name</li>
+          <li><strong>Instructions</strong> &mdash; tell students what to do</li>
+          <li><strong>Student Sees</strong> &mdash; choose which panels are visible (World, Position, Velocity, Acceleration)</li>
+          <li><strong>Student Can Edit</strong> &mdash; choose which graphs students can modify</li>
+          <li><strong>Results Display</strong> &mdash; pick which graph to overlay or tile in the results view</li>
+        </ul>
+
+        <p style="color:#8ab4f8;font-weight:600;font-size:14px;margin-bottom:4px;">5. Add Target Segments (Optional)</p>
+        <p>
+          Target segments are orange guide lines shown on the position graph that students
+          must try to match. Click <strong>+ Add Segment</strong> in the config panel to define
+          time ranges with target position values.
+        </p>
+
+        <p style="color:#8ab4f8;font-weight:600;font-size:14px;margin-bottom:4px;">6. Preview &amp; Test</p>
+        <p>
+          Use the <strong>playback controls</strong> at the bottom to preview the animation.
+          Click <strong>Practice (10 students)</strong> to simulate a class of 10 students and
+          see how the results view will look.
+        </p>
+
+        <p style="color:#8ab4f8;font-weight:600;font-size:14px;margin-bottom:4px;">7. Save or Broadcast</p>
+        <ul style="margin:4px 0 12px 18px;font-size:13px;color:#bbc;line-height:1.7;">
+          <li><strong>Save Challenge</strong> &mdash; download the challenge as a .json file you can share or reload later</li>
+          <li><strong>Load Challenge</strong> &mdash; open a previously saved challenge file for editing</li>
+          <li><strong>Broadcast to Students</strong> &mdash; send the challenge live to all connected students</li>
+        </ul>
+
+        <p style="color:#8ab4f8;font-weight:600;font-size:14px;margin-bottom:4px;">Tips</p>
+        <ul style="margin:4px 0 0 18px;font-size:13px;color:#bbc;line-height:1.7;">
+          <li>Panels can be <strong>dragged</strong> by their title bar and <strong>resized</strong> from the bottom-right corner</li>
+          <li>Use the <strong>Components</strong> sidebar to add or remove World, Position, Velocity, and Acceleration panels</li>
+          <li>The <strong>Edit Tools</strong> sidebar works the same as in the main app &mdash; Select &amp; Drag, Eraser, and drag-to-graph tools</li>
+          <li>Click an actor chip in the top bar to rename it or change its color</li>
+        </ul>
+
+      </div>
+    `;
+
+    overlay.appendChild(card);
+
+    const closeBtn = card.querySelector('.about-close');
+    const close = () => {
+      overlay.classList.add('dismissing');
+      overlay.addEventListener('animationend', () => overlay.remove());
+    };
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) close();
+    });
+
+    document.body.appendChild(overlay);
   }
 
   _createPanel(type, { x, y, width, height, actorIds } = {}) {
