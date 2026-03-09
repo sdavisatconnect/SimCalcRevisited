@@ -132,8 +132,10 @@ export class AnimationWorld {
       // When velocity returns to zero, character stays facing its last
       // direction of travel (standing pose) — only turns around when
       // velocity actually goes negative.
+      // Threshold is 0.1 rather than ≈0 to filter out tiny rounding
+      // errors that arise from velocity↔position integration round-trips.
       let motion = null;
-      if (Math.abs(vel) > 0.001) {
+      if (Math.abs(vel) > 0.1) {
         const facing = vel > 0 ? 1 : -1;
         this._lastFacing[actor.id] = facing;
         // Walk cycle: ~3 steps per second, phase driven by time

@@ -397,7 +397,11 @@ export class GraphInteractionManager {
     const renderer = graphEntry.component.graphRenderer;
     const rect = graphEntry.component.svg.getBoundingClientRect();
     const svgY = e.clientY - rect.top;
-    const { v } = renderer.toData(0, svgY);
+    let { v } = renderer.toData(0, svgY);
+
+    // Snap to zero when dragged close — prevents tiny residual velocities
+    // that cause the animation to show walking-in-place artifacts
+    if (Math.abs(v) < 0.15) v = 0;
 
     const velFn = actor.getVelocityFunction();
     velFn.moveSegmentValue(this.dragState.segmentIndex, v);
