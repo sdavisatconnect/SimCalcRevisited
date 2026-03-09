@@ -47,7 +47,10 @@ export class ElevatorWorld {
     this.labelWidth = 36;
     this.buildingTop = this.displayHeight * 0.06;
     this.buildingBottom = this.displayHeight * 0.92;
-    this.shaftWidth = 56;
+    const posRange = this.sim.posRange;
+    const span = (posRange.max - posRange.min) || 1;
+    this.floorHeight = (this.buildingBottom - this.buildingTop) / span;
+    this.shaftWidth = this.floorHeight * 0.6 + 16;  // car width + gap
 
     this.drawFrame(this.sim.currentTime);
   }
@@ -153,8 +156,8 @@ export class ElevatorWorld {
       // Elevator car at current position
       const pos = actor.getPositionAt(currentTime);
       const carY = this.posToScreenY(pos);  // bottom of car (floor level)
-      const carW = this.shaftWidth - 8;
-      const carH = 40;  // tall enough to enclose the robot character
+      const carH = this.floorHeight;        // exactly 1 floor tall
+      const carW = carH * 0.6;              // narrower than tall (rectangular elevator)
 
       const carLeft = cx - carW / 2;
       const carTop = carY - carH;
@@ -181,7 +184,8 @@ export class ElevatorWorld {
       ctx.fillRect(carLeft, carTop, carW, carH);
 
       // Character standing inside the car (on the car floor)
-      drawCharacter(ctx, cx, carY, actor.color, actor.name, 0.55);
+      const charScale = Math.min((carH - 4) / 40, 0.55);
+      drawCharacter(ctx, cx, carY, actor.color, actor.name, charScale);
 
       // Car frame — outer walls, ceiling, floor
       ctx.strokeStyle = actor.color;
