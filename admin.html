@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SimCalc Feedback Admin</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a1628;
+      color: #dde;
+      min-height: 100vh;
+    }
+
+    /* --- Password gate --- */
+    .gate {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 16px;
+    }
+
+    .gate h1 {
+      font-size: 22px;
+      color: #eef;
+    }
+
+    .gate-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .gate input {
+      padding: 8px 14px;
+      border: 1px solid #0f3460;
+      border-radius: 6px;
+      background: #16213e;
+      color: #dde;
+      font-size: 14px;
+      outline: none;
+      width: 240px;
+    }
+
+    .gate input:focus { border-color: #3498db; }
+
+    .gate button {
+      padding: 8px 20px;
+      border: none;
+      border-radius: 6px;
+      background: #3498db;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .gate button:hover { background: #2980b9; }
+
+    .gate-error {
+      color: #e74c3c;
+      font-size: 13px;
+      min-height: 18px;
+    }
+
+    /* --- Admin panel --- */
+    .admin {
+      display: none;
+      padding: 20px 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .admin-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .admin-header h1 {
+      font-size: 20px;
+      color: #eef;
+    }
+
+    .admin-stats {
+      display: flex;
+      gap: 16px;
+      font-size: 13px;
+      color: #889;
+    }
+
+    .admin-stats .badge {
+      background: #e74c3c;
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .admin-filters {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .admin-filters select,
+    .admin-filters input {
+      padding: 6px 10px;
+      border: 1px solid #0f3460;
+      border-radius: 5px;
+      background: #16213e;
+      color: #dde;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .admin-filters select:focus,
+    .admin-filters input:focus { border-color: #3498db; }
+
+    .export-btn {
+      padding: 6px 14px;
+      border: 1px solid #0f3460;
+      border-radius: 5px;
+      background: #1a2a44;
+      color: #8af;
+      font-size: 12px;
+      cursor: pointer;
+      margin-left: auto;
+    }
+
+    .export-btn:hover { background: #243654; border-color: #3498db; }
+
+    /* --- Feedback table --- */
+    .fb-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .fb-table th {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      color: #889;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 8px 10px;
+      border-bottom: 1px solid #1a2a44;
+    }
+
+    .fb-row {
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .fb-row:hover { background: #121e33; }
+
+    .fb-row td {
+      padding: 10px;
+      font-size: 13px;
+      border-bottom: 1px solid #111d30;
+      vertical-align: top;
+    }
+
+    .fb-row.expanded { background: #121e33; }
+
+    .fb-category {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .fb-category.bug { background: #e74c3c33; color: #e74c3c; }
+    .fb-category.feature { background: #3498db33; color: #3498db; }
+    .fb-category.other { background: #88999933; color: #889; }
+
+    .fb-status-cell select {
+      padding: 3px 6px;
+      border: 1px solid #0f3460;
+      border-radius: 4px;
+      background: #16213e;
+      color: #dde;
+      font-size: 11px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .fb-msg-preview {
+      max-width: 300px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #aab;
+    }
+
+    /* --- Expanded detail row --- */
+    .fb-detail {
+      display: none;
+    }
+
+    .fb-detail.open {
+      display: table-row;
+    }
+
+    .fb-detail td {
+      padding: 12px 10px 16px 10px;
+      border-bottom: 2px solid #1a2a44;
+      background: #0d1829;
+    }
+
+    .fb-detail-inner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .fb-detail-section {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .fb-detail-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #667;
+      text-transform: uppercase;
+    }
+
+    .fb-detail-value {
+      font-size: 13px;
+      color: #ccd;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .fb-detail-full {
+      grid-column: 1 / -1;
+    }
+
+    .fb-notes-textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #0f3460;
+      border-radius: 5px;
+      background: #16213e;
+      color: #dde;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+      resize: vertical;
+      min-height: 60px;
+    }
+
+    .fb-notes-textarea:focus { border-color: #3498db; }
+
+    .fb-save-indicator {
+      font-size: 11px;
+      color: #6a8;
+      min-height: 16px;
+    }
+
+    .fb-attachment-link {
+      color: #8af;
+      cursor: pointer;
+      text-decoration: underline;
+      font-size: 12px;
+    }
+
+    .fb-attachment-link:hover { color: #acf; }
+
+    .fb-screenshot-preview {
+      max-width: 300px;
+      max-height: 200px;
+      border-radius: 4px;
+      margin-top: 4px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #556;
+      font-size: 15px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Password Gate -->
+  <div class="gate" id="gate">
+    <h1>SimCalc Feedback Admin</h1>
+    <div class="gate-row">
+      <input type="password" id="gate-password" placeholder="Enter admin password" autofocus />
+      <button id="gate-submit">Enter</button>
+    </div>
+    <div class="gate-error" id="gate-error"></div>
+  </div>
+
+  <!-- Admin Panel (hidden until authenticated) -->
+  <div class="admin" id="admin">
+    <div class="admin-header">
+      <h1>Feedback Console</h1>
+      <div class="admin-stats">
+        <span>Total: <strong id="stat-total">0</strong></span>
+        <span>New: <span class="badge" id="stat-new">0</span></span>
+      </div>
+    </div>
+
+    <div class="admin-filters">
+      <select id="filter-status">
+        <option value="">All Statuses</option>
+        <option value="new">New</option>
+        <option value="reviewing">Reviewing</option>
+        <option value="planned">Planned</option>
+        <option value="done">Done</option>
+        <option value="wont-fix">Won't Fix</option>
+      </select>
+      <select id="filter-category">
+        <option value="">All Categories</option>
+        <option value="bug">Bug</option>
+        <option value="feature">Feature</option>
+        <option value="other">Other</option>
+      </select>
+      <button class="export-btn" id="export-btn">Export CSV</button>
+    </div>
+
+    <table class="fb-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Name</th>
+          <th>Category</th>
+          <th>Message</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="fb-body"></tbody>
+    </table>
+
+    <div class="empty-state" id="empty-state" style="display:none">No feedback entries yet.</div>
+  </div>
+
+  <script>
+    const FIREBASE_URL = 'https://simcalcrevisited-default-rtdb.firebaseio.com';
+    let feedbackData = {}; // { key: entry }
+    let saveTimers = {}; // debounce timers for notes
+
+    // --- Password Gate ---
+    const gateEl = document.getElementById('gate');
+    const adminEl = document.getElementById('admin');
+    const gatePassword = document.getElementById('gate-password');
+    const gateError = document.getElementById('gate-error');
+
+    document.getElementById('gate-submit').addEventListener('click', checkPassword);
+    gatePassword.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') checkPassword();
+    });
+
+    async function checkPassword() {
+      const pwd = gatePassword.value.trim();
+      if (!pwd) return;
+
+      try {
+        const res = await fetch(`${FIREBASE_URL}/admin/passwordHash.json`);
+        const storedHash = await res.json();
+
+        if (!storedHash) {
+          // No password set yet — first-time setup: store this password's hash
+          const hash = await hashPassword(pwd);
+          await fetch(`${FIREBASE_URL}/admin/passwordHash.json`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(hash),
+          });
+          gateError.textContent = '';
+          showAdmin();
+          return;
+        }
+
+        const hash = await hashPassword(pwd);
+        if (hash === storedHash) {
+          gateError.textContent = '';
+          showAdmin();
+        } else {
+          gateError.textContent = 'Incorrect password.';
+        }
+      } catch (err) {
+        gateError.textContent = 'Connection error. Please try again.';
+        console.error(err);
+      }
+    }
+
+    async function hashPassword(pwd) {
+      const encoded = new TextEncoder().encode(pwd);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', encoded);
+      return Array.from(new Uint8Array(hashBuffer))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+    }
+
+    // --- Admin Panel ---
+    function showAdmin() {
+      gateEl.style.display = 'none';
+      adminEl.style.display = 'block';
+      loadFeedback();
+    }
+
+    async function loadFeedback() {
+      try {
+        const res = await fetch(`${FIREBASE_URL}/feedback.json`);
+        feedbackData = (await res.json()) || {};
+        renderTable();
+      } catch (err) {
+        console.error('Failed to load feedback:', err);
+      }
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('fb-body');
+      const emptyState = document.getElementById('empty-state');
+      const statusFilter = document.getElementById('filter-status').value;
+      const categoryFilter = document.getElementById('filter-category').value;
+
+      let entries = Object.entries(feedbackData)
+        .map(([key, val]) => ({ key, ...val }))
+        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+      if (statusFilter) entries = entries.filter(e => e.status === statusFilter);
+      if (categoryFilter) entries = entries.filter(e => e.category === categoryFilter);
+
+      // Stats
+      const allEntries = Object.values(feedbackData);
+      document.getElementById('stat-total').textContent = allEntries.length;
+      document.getElementById('stat-new').textContent = allEntries.filter(e => e.status === 'new').length;
+
+      if (entries.length === 0) {
+        tbody.innerHTML = '';
+        emptyState.style.display = 'block';
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      tbody.innerHTML = '';
+
+      for (const entry of entries) {
+        // Summary row
+        const row = document.createElement('tr');
+        row.className = 'fb-row';
+        row.dataset.key = entry.key;
+
+        const date = new Date(entry.timestamp || 0);
+        const dateStr = date.toLocaleDateString('en-US', {
+          month: 'short', day: 'numeric', year: 'numeric'
+        });
+
+        row.innerHTML = `
+          <td>${dateStr}</td>
+          <td>${esc(entry.name || '')}</td>
+          <td><span class="fb-category ${entry.category || ''}">${esc(entry.category || 'other')}</span></td>
+          <td class="fb-msg-preview">${esc(entry.message || '')}</td>
+          <td class="fb-status-cell">
+            <select data-key="${entry.key}" class="status-select">
+              <option value="new" ${entry.status === 'new' ? 'selected' : ''}>New</option>
+              <option value="reviewing" ${entry.status === 'reviewing' ? 'selected' : ''}>Reviewing</option>
+              <option value="planned" ${entry.status === 'planned' ? 'selected' : ''}>Planned</option>
+              <option value="done" ${entry.status === 'done' ? 'selected' : ''}>Done</option>
+              <option value="wont-fix" ${entry.status === 'wont-fix' ? 'selected' : ''}>Won't Fix</option>
+            </select>
+          </td>
+        `;
+
+        // Detail row
+        const detail = document.createElement('tr');
+        detail.className = 'fb-detail';
+        detail.dataset.key = entry.key;
+
+        const hasScreenshot = !!entry.screenshot;
+        const hasWorldSave = !!entry.worldSave;
+
+        detail.innerHTML = `
+          <td colspan="5">
+            <div class="fb-detail-inner">
+              <div class="fb-detail-section">
+                <div class="fb-detail-label">Email</div>
+                <div class="fb-detail-value">${esc(entry.email || '')}</div>
+              </div>
+              <div class="fb-detail-section">
+                <div class="fb-detail-label">Browser</div>
+                <div class="fb-detail-value" style="font-size:11px;color:#667">${esc(entry.browser || 'Unknown')}</div>
+              </div>
+              <div class="fb-detail-section fb-detail-full">
+                <div class="fb-detail-label">Full Message</div>
+                <div class="fb-detail-value">${esc(entry.message || '')}</div>
+              </div>
+              <div class="fb-detail-section">
+                <div class="fb-detail-label">Attachments</div>
+                <div class="fb-detail-value">
+                  ${hasScreenshot ? `<span class="fb-attachment-link" data-action="screenshot" data-key="${entry.key}">View Screenshot</span>` : 'No screenshot'}
+                  &nbsp;&nbsp;
+                  ${hasWorldSave ? `<span class="fb-attachment-link" data-action="worldsave" data-key="${entry.key}">Download World Save</span>` : 'No world save'}
+                </div>
+                ${hasScreenshot ? `<img class="fb-screenshot-preview" data-key="${entry.key}" style="display:none" />` : ''}
+              </div>
+              <div class="fb-detail-section">
+                <div class="fb-detail-label">Date / Time</div>
+                <div class="fb-detail-value">${date.toLocaleString()}</div>
+              </div>
+              <div class="fb-detail-section fb-detail-full">
+                <div class="fb-detail-label">Admin Notes</div>
+                <textarea class="fb-notes-textarea" data-key="${entry.key}" placeholder="Add notes...">${esc(entry.adminNotes || '')}</textarea>
+                <div class="fb-save-indicator" data-save-key="${entry.key}"></div>
+              </div>
+            </div>
+          </td>
+        `;
+
+        tbody.appendChild(row);
+        tbody.appendChild(detail);
+
+        // Toggle detail on row click
+        row.addEventListener('click', (e) => {
+          if (e.target.closest('.status-select')) return; // Don't toggle when clicking status
+          row.classList.toggle('expanded');
+          detail.classList.toggle('open');
+        });
+      }
+
+      // Status change handlers
+      tbody.querySelectorAll('.status-select').forEach(sel => {
+        sel.addEventListener('click', (e) => e.stopPropagation());
+        sel.addEventListener('change', (e) => {
+          const key = e.target.dataset.key;
+          const newStatus = e.target.value;
+          feedbackData[key].status = newStatus;
+          patchFeedback(key, { status: newStatus });
+          // Update new count
+          document.getElementById('stat-new').textContent =
+            Object.values(feedbackData).filter(e => e.status === 'new').length;
+        });
+      });
+
+      // Notes change handlers (debounced auto-save)
+      tbody.querySelectorAll('.fb-notes-textarea').forEach(ta => {
+        ta.addEventListener('click', (e) => e.stopPropagation());
+        ta.addEventListener('input', (e) => {
+          const key = e.target.dataset.key;
+          const indicator = tbody.querySelector(`[data-save-key="${key}"]`);
+          if (indicator) indicator.textContent = 'Saving...';
+
+          clearTimeout(saveTimers[key]);
+          saveTimers[key] = setTimeout(() => {
+            feedbackData[key].adminNotes = e.target.value;
+            patchFeedback(key, { adminNotes: e.target.value }).then(() => {
+              if (indicator) indicator.textContent = 'Saved';
+              setTimeout(() => { if (indicator) indicator.textContent = ''; }, 2000);
+            });
+          }, 800);
+        });
+      });
+
+      // Attachment click handlers
+      tbody.querySelectorAll('.fb-attachment-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const key = e.target.dataset.key;
+          const action = e.target.dataset.action;
+
+          if (action === 'screenshot') {
+            const img = tbody.querySelector(`img.fb-screenshot-preview[data-key="${key}"]`);
+            if (img) {
+              if (img.style.display === 'none') {
+                img.src = feedbackData[key].screenshot;
+                img.style.display = 'block';
+              } else {
+                img.style.display = 'none';
+              }
+            }
+          } else if (action === 'worldsave') {
+            const data = feedbackData[key].worldSave;
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `feedback-world-${key}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }
+        });
+      });
+    }
+
+    async function patchFeedback(key, data) {
+      try {
+        await fetch(`${FIREBASE_URL}/feedback/${key}.json`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+      } catch (err) {
+        console.error('Failed to save:', err);
+      }
+    }
+
+    // --- Filters ---
+    document.getElementById('filter-status').addEventListener('change', renderTable);
+    document.getElementById('filter-category').addEventListener('change', renderTable);
+
+    // --- CSV Export ---
+    document.getElementById('export-btn').addEventListener('click', () => {
+      const entries = Object.entries(feedbackData)
+        .map(([key, val]) => ({ key, ...val }))
+        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+      const headers = ['Date', 'Name', 'Email', 'Category', 'Status', 'Message', 'Admin Notes'];
+      const rows = entries.map(e => [
+        new Date(e.timestamp || 0).toISOString(),
+        e.name || '',
+        e.email || '',
+        e.category || '',
+        e.status || '',
+        (e.message || '').replace(/"/g, '""'),
+        (e.adminNotes || '').replace(/"/g, '""'),
+      ]);
+
+      let csv = headers.join(',') + '\n';
+      for (const row of rows) {
+        csv += row.map(c => `"${c}"`).join(',') + '\n';
+      }
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `simcalc-feedback-${Date.now()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // --- Utility ---
+    function esc(str) {
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+  </script>
+</body>
+</html>
