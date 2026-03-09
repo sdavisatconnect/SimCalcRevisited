@@ -331,6 +331,7 @@ body {
   cursor: pointer;
   white-space: nowrap;
   transition: border-color 0.15s, color 0.15s;
+  margin-left: 6px;
 }
 
 .about-btn:hover {
@@ -464,6 +465,89 @@ body {
 .about-credit-text strong {
   color: #dde;
   font-style: normal;
+}
+
+/* ===== How To Modal ===== */
+.howto-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 30, 0.85);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.3s ease;
+}
+
+.howto-overlay.dismissing {
+  animation: fadeOut 0.3s ease forwards;
+}
+
+.howto-card {
+  background: #1a1a2e;
+  border: 1px solid #334;
+  border-radius: 12px;
+  padding: 28px 32px 24px;
+  max-width: 620px;
+  width: 90%;
+  max-height: 85vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+}
+
+.howto-title {
+  font-size: 20px;
+  color: #eef;
+  margin-bottom: 18px;
+  padding-right: 28px;
+}
+
+.howto-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.howto-section h3 {
+  font-size: 14px;
+  color: #6cb4ee;
+  margin-bottom: 6px;
+}
+
+.howto-section p {
+  font-size: 13px;
+  color: #bbc;
+  line-height: 1.6;
+  margin-bottom: 6px;
+}
+
+.howto-section ul {
+  margin: 4px 0 6px 18px;
+  font-size: 13px;
+  color: #bbc;
+  line-height: 1.7;
+}
+
+.howto-section li {
+  margin-bottom: 2px;
+}
+
+.howto-section strong {
+  color: #dde;
+}
+
+/* Scrollbar for howto card */
+.howto-card::-webkit-scrollbar {
+  width: 6px;
+}
+.howto-card::-webkit-scrollbar-track {
+  background: transparent;
+}
+.howto-card::-webkit-scrollbar-thumb {
+  background: #334;
+  border-radius: 3px;
 }
 
 /* ===== Panels ===== */
@@ -928,6 +1012,21 @@ body {
 
 .io-btn:hover {
   background: #1a5276 !important;
+}
+
+/* Tooltip popup (JS-created, appended to body) */
+.btn-tooltip {
+  position: fixed;
+  background: #111;
+  color: #eee;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 99999;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
 }
 
 /* ===== World Selector Overlay ===== */

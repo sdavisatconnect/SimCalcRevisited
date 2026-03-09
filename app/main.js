@@ -275,6 +275,30 @@ document.getElementById('btn-load').addEventListener('click', async () => {
   speedValue.textContent = sim.playbackSpeed + '\u00D7';
 });
 
+// --- Tooltips for toolbar buttons ---
+// Fixed-position DOM elements appended to body (avoids stacking context issues)
+{
+  let tip = null;
+  for (const btn of document.querySelectorAll('[data-tooltip]')) {
+    btn.addEventListener('mouseenter', () => {
+      tip = document.createElement('div');
+      tip.className = 'btn-tooltip';
+      tip.textContent = btn.dataset.tooltip;
+      document.body.appendChild(tip);
+      const rect = btn.getBoundingClientRect();
+      const tipRect = tip.getBoundingClientRect();
+      tip.style.left = Math.min(
+        rect.left + (rect.width - tipRect.width) / 2,
+        window.innerWidth - tipRect.width - 4
+      ) + 'px';
+      tip.style.top = (rect.top - tipRect.height - 6) + 'px';
+    });
+    btn.addEventListener('mouseleave', () => {
+      if (tip) { tip.remove(); tip = null; }
+    });
+  }
+}
+
 // Initial time cursors
 workspace.drawTimeCursors(0);
 

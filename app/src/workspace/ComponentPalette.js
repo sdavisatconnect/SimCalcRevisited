@@ -12,10 +12,18 @@ export class ComponentPalette {
     this.actorContainer.className = 'actor-palette';
     this.container.appendChild(this.actorContainer);
 
-    // Spacer to push About button to the right
+    // Spacer to push buttons to the right
     const spacer = document.createElement('div');
     spacer.style.flex = '1';
     this.container.appendChild(spacer);
+
+    // How To button
+    const howToBtn = document.createElement('button');
+    howToBtn.className = 'about-btn';
+    howToBtn.textContent = 'How To';
+    howToBtn.title = 'Quick-start guide';
+    howToBtn.addEventListener('click', () => this._showHowToModal());
+    this.container.appendChild(howToBtn);
 
     // About button
     const aboutBtn = document.createElement('button');
@@ -24,6 +32,117 @@ export class ComponentPalette {
     aboutBtn.title = 'About SimCalc Revisited';
     aboutBtn.addEventListener('click', () => this._showAboutModal());
     this.container.appendChild(aboutBtn);
+  }
+
+  _showHowToModal() {
+    if (document.querySelector('.howto-overlay')) return;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'howto-overlay';
+
+    const card = document.createElement('div');
+    card.className = 'howto-card';
+
+    card.innerHTML = `
+      <button class="about-close" title="Close">&times;</button>
+      <h2 class="howto-title">How To Use SimCalc Revisited</h2>
+      <div class="howto-body">
+
+        <div class="howto-section">
+          <h3>1. Choose a World</h3>
+          <p>
+            When you start, pick <strong>Horizontal World</strong> (characters walk along a track)
+            or <strong>Vertical World</strong> (elevator moves up and down). This sets the motion
+            context for your graphs.
+          </p>
+        </div>
+
+        <div class="howto-section">
+          <h3>2. Actors</h3>
+          <p>
+            <strong>Actors</strong> are the characters whose motion you define.
+            The top bar shows your actors. Click <strong>+</strong> to add one (up to 4).
+            Click an actor chip to rename it or change its color. Each actor gets its own
+            set of motion functions.
+          </p>
+        </div>
+
+        <div class="howto-section">
+          <h3>3. Panels &amp; Graphs</h3>
+          <p>
+            The right sidebar has <strong>Components</strong> &mdash; drag or click them to add
+            panels to the workspace:
+          </p>
+          <ul>
+            <li><strong>World</strong> &mdash; animated view of characters moving</li>
+            <li><strong>Position (P/T)</strong> &mdash; position vs. time graph</li>
+            <li><strong>Velocity (V/T)</strong> &mdash; velocity vs. time graph</li>
+            <li><strong>Accel (A/T)</strong> &mdash; acceleration vs. time graph</li>
+          </ul>
+          <p>
+            Use the <strong>dropdown</strong> in each panel&rsquo;s title bar to choose which
+            actor(s) it displays. Panels can be <strong>dragged</strong> by their title bar
+            and <strong>resized</strong> from the bottom-right corner.
+          </p>
+        </div>
+
+        <div class="howto-section">
+          <h3>4. Editing Motion</h3>
+          <p>
+            Use the <strong>Edit Tools</strong> in the right sidebar:
+          </p>
+          <ul>
+            <li><strong>Select &amp; Drag</strong> &mdash; drag points on position graphs or
+                bars on velocity graphs to change values</li>
+            <li><strong>Eraser</strong> &mdash; click a point or segment to remove it</li>
+          </ul>
+          <p>
+            Under <strong>Drag to Graph</strong>, drag tools onto the matching graph to add elements:
+          </p>
+          <ul>
+            <li><strong>P &bull;</strong> &mdash; add a control point to a position graph</li>
+            <li><strong>V &lt;&gt;</strong> &mdash; add a constant velocity segment</li>
+            <li><strong>V /</strong> and <strong>V \\</strong> &mdash; add ramp-up (accelerate) or ramp-down (decelerate) segments</li>
+          </ul>
+        </div>
+
+        <div class="howto-section">
+          <h3>5. Playback</h3>
+          <p>
+            The bottom bar has playback controls. Press <strong>Play</strong> to animate,
+            <strong>Step</strong> to advance frame-by-frame, and <strong>Reset</strong> to
+            return to time 0. Use the <strong>Speed</strong> slider to go faster or slower.
+          </p>
+        </div>
+
+        <div class="howto-section">
+          <h3>6. Save &amp; Load</h3>
+          <p>
+            The icons at the bottom right let you:
+          </p>
+          <ul>
+            <li><strong>\u{1F4C4} New</strong> &mdash; start over with a fresh workspace</li>
+            <li><strong>\u{1F4BE} Save</strong> &mdash; save your current work as a JSON template file</li>
+            <li><strong>\u{1F4C2} Load</strong> &mdash; load a previously saved template</li>
+          </ul>
+        </div>
+
+      </div>
+    `;
+
+    overlay.appendChild(card);
+
+    const closeBtn = card.querySelector('.about-close');
+    const close = () => {
+      overlay.classList.add('dismissing');
+      overlay.addEventListener('animationend', () => overlay.remove());
+    };
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) close();
+    });
+
+    document.body.appendChild(overlay);
   }
 
   _showAboutModal() {
