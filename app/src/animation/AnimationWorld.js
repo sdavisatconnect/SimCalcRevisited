@@ -13,6 +13,11 @@ export class AnimationWorld {
     this._resizeObserver = new ResizeObserver(() => this._resize());
     this._resizeObserver.observe(canvas.parentElement);
 
+    // Track last non-zero facing direction per actor so characters
+    // don't snap to front-facing when they stop — they stay facing
+    // the direction they were last moving.
+    this._lastFacing = {};
+
     this.drawFrame(0);
   }
 
@@ -120,13 +125,23 @@ export class AnimationWorld {
       const depthScale = 1 - lane * laneScale;
       const depthGroundY = this.groundY - lane * laneOffset;
 
-      // Determine facing direction and walk cycle phase from velocity
+      // Determine facing direction and walk cycle phase from velocity.
+      // When velocity is non-zero, character walks in that direction.
+      // When velocity returns to zero, character stays facing its last
+      // direction of travel (standing pose) — only turns around when
+      // velocity actually goes negative.
+      // Threshold is 0.1 rather than ≈0 to filter out tiny rounding
+      // errors that arise from velocity↔position integration round-trips.
       let motion = null;
-      if (Math.abs(vel) > 0.001) {
+      if (Math.abs(vel) > 0.1) {
         const facing = vel > 0 ? 1 : -1;
+        this._lastFacing[actor.id] = facing;
         // Walk cycle: ~3 steps per second, phase driven by time
         const walkPhase = (currentTime * 3) % 1;
         motion = { facing, walkPhase };
+      } else if (this._lastFacing[actor.id]) {
+        // Stopped but was previously moving — face last direction, standing still
+        motion = { facing: this._lastFacing[actor.id], walkPhase: 0 };
       }
 
       drawCharacter(ctx, screenX, depthGroundY, actor.color, actor.name, depthScale, motion);
