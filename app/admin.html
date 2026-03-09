@@ -890,6 +890,15 @@
                 <div class="fb-detail-label">Handouts</div>
                 <div class="fb-detail-value">${handoutsHtml}</div>
               </div>
+              <div class="fb-detail-section">
+                <div class="fb-detail-label">Classic SimCalc</div>
+                <div class="fb-detail-value">
+                  <label style="cursor:pointer;display:flex;align-items:center;gap:6px;">
+                    <input type="checkbox" class="act-classic-toggle" data-key="${entry.key}" ${entry.isClassic ? 'checked' : ''} />
+                    Mark as ported from Classic SimCalc
+                  </label>
+                </div>
+              </div>
               <div class="fb-detail-section fb-detail-full">
                 <div class="fb-detail-label">Admin Notes</div>
                 <textarea class="fb-notes-textarea act-notes" data-key="${entry.key}" placeholder="Add notes...">${esc(entry.adminNotes || '')}</textarea>
@@ -921,6 +930,17 @@
           patchActivity(key, patch);
           document.getElementById('act-stat-pending').textContent =
             Object.values(activitiesData).filter(e => e.status === 'pending').length;
+        });
+      });
+
+      // Classic SimCalc toggle
+      tbody.querySelectorAll('.act-classic-toggle').forEach(cb => {
+        cb.addEventListener('click', (e) => e.stopPropagation());
+        cb.addEventListener('change', (e) => {
+          const key = e.target.dataset.key;
+          const isClassic = e.target.checked;
+          activitiesData[key].isClassic = isClassic;
+          patchActivity(key, { isClassic });
         });
       });
 

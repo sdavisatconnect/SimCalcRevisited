@@ -153,6 +153,114 @@
     .repo-badge.standalone { background: #27ae6033; color: #2ecc71; }
     .repo-badge.connectivity { background: #3498db33; color: #3498db; }
     .repo-badge.grade { background: #88999920; color: #99a; }
+    .repo-badge.classic { background: #e67e2233; color: #e67e22; }
+
+    /* --- Star ratings --- */
+    .repo-stars {
+      display: inline-flex;
+      gap: 1px;
+      font-size: 14px;
+      color: #555;
+    }
+
+    .repo-stars .star.filled { color: #f1c40f; }
+    .repo-stars .star.half { color: #f1c40f; opacity: 0.5; }
+
+    .repo-card-rating {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+      font-size: 12px;
+      color: #889;
+    }
+
+    /* --- Reviews section --- */
+    .repo-reviews {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid #1a2a44;
+    }
+
+    .repo-reviews-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #eef;
+      margin-bottom: 16px;
+    }
+
+    .repo-review-card {
+      background: #0d1829;
+      border: 1px solid #1a2a44;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 10px;
+    }
+
+    .repo-review-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .repo-review-author {
+      font-size: 13px;
+      font-weight: 600;
+      color: #bbc;
+    }
+
+    .repo-review-date {
+      font-size: 11px;
+      color: #667;
+    }
+
+    .repo-review-text {
+      font-size: 13px;
+      color: #aab;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .repo-review-form {
+      background: #0d1829;
+      border: 1px solid #1a2a44;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 14px;
+    }
+
+    .repo-review-form h4 {
+      font-size: 14px;
+      color: #99b;
+      margin-bottom: 12px;
+    }
+
+    .repo-star-picker {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+
+    .repo-star-picker .star-btn {
+      background: none;
+      border: none;
+      font-size: 24px;
+      color: #334;
+      cursor: pointer;
+      padding: 0 2px;
+      transition: color 0.1s;
+    }
+
+    .repo-star-picker .star-btn:hover,
+    .repo-star-picker .star-btn.active { color: #f1c40f; }
+
+    .repo-no-reviews {
+      font-size: 13px;
+      color: #556;
+      font-style: italic;
+      margin-bottom: 14px;
+    }
 
     .repo-card-overview {
       font-size: 13px;
@@ -578,10 +686,28 @@
   <script>
     const FIREBASE_URL = 'https://simcalcrevisited-default-rtdb.firebaseio.com';
     let activitiesData = [];  // { key, ...activity }
+    let reviewsCache = {};    // { activityKey: [ { key, ...review } ] }
     let currentView = 'browse'; // 'browse' | 'detail'
     let templateFileData = null;
     let templateFileName = '';
     let handouts = []; // { type: 'file'|'link', name, data?, mimeType?, url? }
+
+    // --- Star helpers ---
+    function starsHTML(rating, size) {
+      const sz = size || 14;
+      let html = '';
+      for (let i = 1; i <= 5; i++) {
+        html += `<span class="star ${i <= Math.round(rating) ? 'filled' : ''}" style="font-size:${sz}px">&#9733;</span>`;
+      }
+      return html;
+    }
+
+    function getAvgRating(activityKey) {
+      const reviews = reviewsCache[activityKey];
+      if (!reviews || reviews.length === 0) return null;
+      const sum = reviews.reduce((s, r) => s + (r.rating || 0), 0);
+      return { avg: sum / reviews.length, count: reviews.length };
+    }
 
     // --- Tab switching ---
     document.querySelectorAll('.repo-tab').forEach(tab => {
@@ -600,8 +726,12 @@
       body.innerHTML = '<div class="repo-loading"><div class="repo-spinner"></div><div>Loading activities...</div></div>';
 
       try {
-        const res = await fetch(`${FIREBASE_URL}/activities.json`);
-        const raw = await res.json();
+        const [actRes, revRes] = await Promise.all([
+          fetch(`${FIREBASE_URL}/activities.json`),
+          fetch(`${FIREBASE_URL}/activity-reviews.json`),
+        ]);
+        const raw = await actRes.json();
+        const rawReviews = await revRes.json();
         if (!raw) {
           activitiesData = [];
         } else {
@@ -609,6 +739,15 @@
             .map(([key, val]) => ({ key, ...val }))
             .filter(a => a.status === 'approved')
             .sort((a, b) => (b.submittedAt || 0) - (a.submittedAt || 0));
+        }
+        // Build reviews cache
+        reviewsCache = {};
+        if (rawReviews) {
+          for (const [actKey, reviews] of Object.entries(rawReviews)) {
+            reviewsCache[actKey] = Object.entries(reviews)
+              .map(([rk, rv]) => ({ key: rk, ...rv }))
+              .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+          }
         }
         renderGrid();
       } catch (err) {
@@ -646,14 +785,21 @@
       for (const activity of filtered) {
         const card = document.createElement('div');
         card.className = 'repo-card';
+        const classicBadge = activity.isClassic ? '<span class="repo-badge classic">Classic SimCalc</span>' : '';
+        const ratingInfo = getAvgRating(activity.key);
+        const ratingHTML = ratingInfo
+          ? `<div class="repo-card-rating"><span class="repo-stars">${starsHTML(ratingInfo.avg)}</span><span>${ratingInfo.avg.toFixed(1)} (${ratingInfo.count})</span></div>`
+          : '';
         card.innerHTML = `
           <div class="repo-card-title">${esc(activity.title || 'Untitled')}</div>
           <div class="repo-card-meta">
             <span class="repo-card-author">by ${esc(activity.author || 'Unknown')}</span>
             <span class="repo-badge ${activity.category || ''}">${esc(activity.category || '')}</span>
             <span class="repo-badge grade">${esc(activity.gradeLevel || '')}</span>
+            ${classicBadge}
           </div>
           <div class="repo-card-overview">${esc(activity.overview || '')}</div>
+          ${ratingHTML}
         `;
         card.addEventListener('click', () => renderDetail(activity));
         grid.appendChild(card);
@@ -685,6 +831,12 @@
       const date = new Date(activity.submittedAt || 0);
       const dateStr = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
+      const classicBadge = activity.isClassic ? '<span class="repo-badge classic">Classic SimCalc</span>' : '';
+      const ratingInfo = getAvgRating(activity.key);
+      const ratingHTML = ratingInfo
+        ? `<span class="repo-stars">${starsHTML(ratingInfo.avg, 16)}</span><span class="repo-card-author">${ratingInfo.avg.toFixed(1)} (${ratingInfo.count} review${ratingInfo.count === 1 ? '' : 's'})</span>`
+        : '';
+
       detail.innerHTML = `
         <button class="repo-detail-back">&larr; Back to Activities</button>
         <div class="repo-detail-title">${esc(activity.title || 'Untitled')}</div>
@@ -692,10 +844,13 @@
           <span class="repo-card-author">by ${esc(activity.author || 'Unknown')}</span>
           <span class="repo-badge ${activity.category || ''}">${esc(activity.category || '')}</span>
           <span class="repo-badge grade">${esc(activity.gradeLevel || '')}</span>
+          ${classicBadge}
           <span class="repo-card-author">${dateStr}</span>
+          ${ratingHTML}
         </div>
         ${sectionsHTML}
         <div class="repo-detail-downloads" id="detail-downloads"></div>
+        <div class="repo-reviews" id="reviews-section"></div>
       `;
 
       body.innerHTML = '';
@@ -754,6 +909,143 @@
         }
         downloads.appendChild(btn);
       }
+
+      // --- Reviews section ---
+      renderReviews(activity, detail.querySelector('#reviews-section'));
+    }
+
+    function renderReviews(activity, container) {
+      const reviews = reviewsCache[activity.key] || [];
+
+      let reviewsHTML = reviews.length === 0
+        ? '<p class="repo-no-reviews">No reviews yet. Be the first to share your experience!</p>'
+        : reviews.map(r => {
+            const d = new Date(r.timestamp || 0);
+            const ds = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            return `
+              <div class="repo-review-card">
+                <div class="repo-review-header">
+                  <span class="repo-stars">${starsHTML(r.rating)}</span>
+                  <span class="repo-review-author">${esc(r.reviewerName || 'Anonymous')}</span>
+                  <span class="repo-review-date">${ds}</span>
+                </div>
+                <div class="repo-review-text">${esc(r.comment || '')}</div>
+              </div>
+            `;
+          }).join('');
+
+      container.innerHTML = `
+        <div class="repo-reviews-title">Reviews &amp; Feedback</div>
+        ${reviewsHTML}
+        <div class="repo-review-form">
+          <h4>Leave a Review</h4>
+          <div class="repo-field" style="margin-bottom:10px">
+            <label class="repo-label">Your Name <span class="repo-req">*</span></label>
+            <input type="text" class="repo-input" id="review-name" placeholder="First name and last initial (e.g. Sarah D.)" autocomplete="name" />
+          </div>
+          <div style="margin-bottom:10px">
+            <label class="repo-label">Rating <span class="repo-req">*</span></label>
+            <div class="repo-star-picker" id="star-picker">
+              <button type="button" class="star-btn" data-val="1">&#9733;</button>
+              <button type="button" class="star-btn" data-val="2">&#9733;</button>
+              <button type="button" class="star-btn" data-val="3">&#9733;</button>
+              <button type="button" class="star-btn" data-val="4">&#9733;</button>
+              <button type="button" class="star-btn" data-val="5">&#9733;</button>
+            </div>
+          </div>
+          <div class="repo-field" style="margin-bottom:10px">
+            <label class="repo-label">What worked? What didn't? <span class="repo-req">*</span></label>
+            <textarea class="repo-textarea" id="review-comment" rows="3" placeholder="Share your experience using this activity in your classroom..."></textarea>
+          </div>
+          <div id="review-messages"></div>
+          <button type="button" class="repo-submit-btn" id="review-submit-btn" style="font-size:13px;padding:8px 20px;">Submit Review</button>
+        </div>
+      `;
+
+      // Star picker interaction
+      let selectedRating = 0;
+      const starBtns = container.querySelectorAll('#star-picker .star-btn');
+      starBtns.forEach(btn => {
+        btn.addEventListener('mouseenter', () => {
+          const val = parseInt(btn.dataset.val);
+          starBtns.forEach(b => b.classList.toggle('active', parseInt(b.dataset.val) <= val));
+        });
+        btn.addEventListener('click', () => {
+          selectedRating = parseInt(btn.dataset.val);
+          starBtns.forEach(b => b.classList.toggle('active', parseInt(b.dataset.val) <= selectedRating));
+        });
+      });
+      container.querySelector('#star-picker').addEventListener('mouseleave', () => {
+        starBtns.forEach(b => b.classList.toggle('active', parseInt(b.dataset.val) <= selectedRating));
+      });
+
+      // Submit review
+      container.querySelector('#review-submit-btn').addEventListener('click', async () => {
+        const revMsgs = container.querySelector('#review-messages');
+        revMsgs.innerHTML = '';
+
+        const reviewerName = container.querySelector('#review-name').value.trim();
+        const comment = container.querySelector('#review-comment').value.trim();
+
+        // Validate unique name format: require "FirstName L." pattern
+        if (!reviewerName) {
+          revMsgs.innerHTML = '<div class="repo-error">Please enter your name.</div>';
+          return;
+        }
+        if (!/^[A-Za-z]+\s+[A-Za-z]\.?$/.test(reviewerName)) {
+          revMsgs.innerHTML = '<div class="repo-error">Please use the format: First name and last initial (e.g. "Sarah D.")</div>';
+          return;
+        }
+        if (selectedRating === 0) {
+          revMsgs.innerHTML = '<div class="repo-error">Please select a rating.</div>';
+          return;
+        }
+        if (!comment) {
+          revMsgs.innerHTML = '<div class="repo-error">Please share what worked or didn\'t.</div>';
+          return;
+        }
+
+        // Check for duplicate name on this activity
+        const existingReviews = reviewsCache[activity.key] || [];
+        const nameLower = reviewerName.toLowerCase().replace(/\.?\s*$/, '');
+        const duplicate = existingReviews.some(r =>
+          (r.reviewerName || '').toLowerCase().replace(/\.?\s*$/, '') === nameLower
+        );
+        if (duplicate) {
+          revMsgs.innerHTML = '<div class="repo-error">A review with this name already exists for this activity. Please use a different name or update your existing review.</div>';
+          return;
+        }
+
+        const submitBtn = container.querySelector('#review-submit-btn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Submitting...';
+
+        try {
+          const payload = {
+            reviewerName,
+            rating: selectedRating,
+            comment,
+            timestamp: Date.now(),
+          };
+          const res = await fetch(`${FIREBASE_URL}/activity-reviews/${activity.key}.json`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) throw new Error('Firebase error');
+          const { name: newKey } = await res.json();
+
+          // Update cache and re-render
+          if (!reviewsCache[activity.key]) reviewsCache[activity.key] = [];
+          reviewsCache[activity.key].unshift({ key: newKey, ...payload });
+          renderReviews(activity, container);
+        } catch (err) {
+          revMsgs.innerHTML = '<div class="repo-error">Failed to submit review. Please try again.</div>';
+          console.error('Review submit error:', err);
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Submit Review';
+        }
+      });
     }
 
     // Filter event listeners
