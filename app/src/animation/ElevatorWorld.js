@@ -102,7 +102,7 @@ export class ElevatorWorld {
     // Floor lines and labels
     const posRange = this.sim.posRange;
     const span = posRange.max - posRange.min;
-    const posStep = span <= 10 ? 1 : (span <= 22 ? 2 : 5);
+    const posStep = 1;  // label every floor
 
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'right';
@@ -127,7 +127,7 @@ export class ElevatorWorld {
 
       // Label
       ctx.fillStyle = '#ddd';
-      ctx.fillText(d + 'm', bLeft - 5, y + 3);
+      ctx.fillText(d, bLeft - 5, y + 3);
     }
 
     // Draw elevator shafts and actors
