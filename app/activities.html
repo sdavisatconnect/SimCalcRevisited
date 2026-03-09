@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SimCalc Activity Repository</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a1628;
+      color: #dde;
+      min-height: 100vh;
+    }
+
+    /* --- Header --- */
+    .repo-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      border-bottom: 1px solid #1a2a44;
+      background: #0d1c30;
+    }
+
+    .repo-header h1 {
+      font-size: 20px;
+      color: #eef;
+      font-weight: 700;
+    }
+
+    .repo-header h1 span {
+      color: #3498db;
+    }
+
+    .repo-back-link {
+      color: #8af;
+      text-decoration: none;
+      font-size: 13px;
+      border: 1px solid #0f3460;
+      padding: 5px 12px;
+      border-radius: 6px;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .repo-back-link:hover { border-color: #3498db; color: #acf; }
+
+    /* --- Tabs --- */
+    .repo-tabs {
+      display: flex;
+      gap: 0;
+      padding: 0 24px;
+      background: #0d1c30;
+      border-bottom: 1px solid #1a2a44;
+    }
+
+    .repo-tab {
+      padding: 12px 24px;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      color: #889;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .repo-tab:hover { color: #bbc; }
+    .repo-tab.active { color: #3498db; border-bottom-color: #3498db; }
+
+    /* --- Main content --- */
+    .repo-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px 24px;
+    }
+
+    /* --- Filters --- */
+    .repo-filters {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .repo-filters input,
+    .repo-filters select {
+      padding: 8px 12px;
+      border: 1px solid #0f3460;
+      border-radius: 6px;
+      background: #16213e;
+      color: #dde;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .repo-filters input:focus,
+    .repo-filters select:focus { border-color: #3498db; }
+
+    .repo-search { flex: 1; min-width: 200px; }
+
+    /* --- Card grid --- */
+    .repo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .repo-card {
+      background: #16213e;
+      border: 1px solid #0f3460;
+      border-radius: 10px;
+      padding: 18px;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.1s;
+    }
+
+    .repo-card:hover {
+      border-color: #3498db;
+      transform: translateY(-2px);
+    }
+
+    .repo-card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #eef;
+      margin-bottom: 6px;
+    }
+
+    .repo-card-meta {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .repo-card-author {
+      font-size: 12px;
+      color: #889;
+    }
+
+    .repo-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .repo-badge.standalone { background: #27ae6033; color: #2ecc71; }
+    .repo-badge.connectivity { background: #3498db33; color: #3498db; }
+    .repo-badge.grade { background: #88999920; color: #99a; }
+
+    .repo-card-overview {
+      font-size: 13px;
+      color: #aab;
+      line-height: 1.5;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* --- Loading & empty states --- */
+    .repo-loading, .repo-empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: #556;
+      font-size: 15px;
+    }
+
+    .repo-spinner {
+      display: inline-block;
+      width: 28px;
+      height: 28px;
+      border: 3px solid #1a2a44;
+      border-top-color: #3498db;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 12px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* --- Detail view --- */
+    .repo-detail {
+      background: #16213e;
+      border: 1px solid #0f3460;
+      border-radius: 10px;
+      padding: 24px;
+    }
+
+    .repo-detail-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #8af;
+      background: none;
+      border: 1px solid #0f3460;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      margin-bottom: 16px;
+    }
+
+    .repo-detail-back:hover { border-color: #3498db; color: #acf; }
+
+    .repo-detail-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #eef;
+      margin-bottom: 8px;
+    }
+
+    .repo-detail-meta {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .repo-detail-section {
+      margin-bottom: 18px;
+    }
+
+    .repo-detail-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #6cb4ee;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .repo-detail-value {
+      font-size: 14px;
+      color: #ccd;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .repo-detail-downloads {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid #1a2a44;
+    }
+
+    .repo-download-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: #3498db;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .repo-download-btn:hover { background: #2980b9; }
+
+    .repo-download-btn.secondary {
+      background: #1a2a44;
+      border: 1px solid #0f3460;
+      color: #8af;
+    }
+
+    .repo-download-btn.secondary:hover { border-color: #3498db; background: #243654; }
+
+    /* --- Submit form --- */
+    .repo-form {
+      max-width: 700px;
+    }
+
+    .repo-field {
+      margin-bottom: 16px;
+    }
+
+    .repo-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #99b;
+      margin-bottom: 5px;
+    }
+
+    .repo-req { color: #e74c3c; }
+
+    .repo-input,
+    .repo-select,
+    .repo-textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #0f3460;
+      border-radius: 6px;
+      background: #16213e;
+      color: #dde;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+    }
+
+    .repo-input:focus,
+    .repo-select:focus,
+    .repo-textarea:focus { border-color: #3498db; }
+
+    .repo-textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .repo-textarea.tall { min-height: 120px; }
+
+    .repo-file-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .repo-file-btn {
+      padding: 8px 16px;
+      background: #1a2a44;
+      border: 1px dashed #0f3460;
+      border-radius: 6px;
+      color: #8af;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .repo-file-btn:hover { border-color: #3498db; }
+
+    .repo-file-name {
+      font-size: 13px;
+      color: #6a8;
+    }
+
+    /* Handouts repeater */
+    .repo-handouts-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .repo-handout-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      background: #0d1829;
+      border: 1px solid #1a2a44;
+      border-radius: 6px;
+      padding: 10px;
+    }
+
+    .repo-handout-row select {
+      padding: 6px 8px;
+      border: 1px solid #0f3460;
+      border-radius: 4px;
+      background: #16213e;
+      color: #dde;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .repo-handout-row input[type="text"] {
+      flex: 1;
+      padding: 6px 8px;
+      border: 1px solid #0f3460;
+      border-radius: 4px;
+      background: #16213e;
+      color: #dde;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .repo-handout-row input[type="text"]:focus,
+    .repo-handout-row select:focus { border-color: #3498db; }
+
+    .repo-handout-remove {
+      background: none;
+      border: none;
+      color: #e74c3c;
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+    }
+
+    .repo-handout-remove:hover { color: #ff6b6b; }
+
+    .repo-add-handout-btn {
+      padding: 6px 14px;
+      background: none;
+      border: 1px dashed #0f3460;
+      border-radius: 6px;
+      color: #889;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .repo-add-handout-btn:hover { border-color: #3498db; color: #8af; }
+
+    .repo-submit-btn {
+      padding: 10px 28px;
+      background: #3498db;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    .repo-submit-btn:hover { background: #2980b9; }
+    .repo-submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .repo-error {
+      background: #e74c3c22;
+      border: 1px solid #e74c3c44;
+      color: #e74c3c;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+
+    .repo-success {
+      background: #27ae6022;
+      border: 1px solid #27ae6044;
+      color: #2ecc71;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+
+    /* Hidden file inputs */
+    .repo-hidden-input { display: none; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="repo-header">
+    <h1><span>SimCalc</span> Activity Repository</h1>
+    <a class="repo-back-link" href="index.html">&larr; Back to SimCalc</a>
+  </div>
+
+  <!-- Tabs -->
+  <div class="repo-tabs">
+    <button class="repo-tab active" data-tab="browse">Browse Activities</button>
+    <button class="repo-tab" data-tab="submit">Submit an Activity</button>
+  </div>
+
+  <!-- Content -->
+  <div class="repo-content">
+    <!-- Browse View -->
+    <div id="browse-view">
+      <div class="repo-filters">
+        <input type="text" class="repo-search" id="search-input" placeholder="Search activities..." />
+        <select id="filter-category">
+          <option value="">All Categories</option>
+          <option value="standalone">Standalone</option>
+          <option value="connectivity">Connectivity</option>
+        </select>
+        <select id="filter-grade">
+          <option value="">All Grades</option>
+          <option value="K-2">K-2</option>
+          <option value="3-5">3-5</option>
+          <option value="6-8">6-8</option>
+          <option value="9-12">9-12</option>
+        </select>
+      </div>
+      <div id="browse-body">
+        <div class="repo-loading">
+          <div class="repo-spinner"></div>
+          <div>Loading activities...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Submit View (hidden initially) -->
+    <div id="submit-view" style="display:none">
+      <div class="repo-form">
+        <div id="submit-messages"></div>
+        <form id="submit-form" novalidate>
+          <div class="repo-field">
+            <label class="repo-label">Title <span class="repo-req">*</span></label>
+            <input type="text" class="repo-input" name="title" required placeholder="e.g. Racing to the Finish Line" />
+          </div>
+
+          <div class="repo-field">
+            <label class="repo-label">Author Name <span class="repo-req">*</span></label>
+            <input type="text" class="repo-input" name="author" required autocomplete="name" />
+          </div>
+
+          <div class="repo-field">
+            <label class="repo-label">Email <span class="repo-req">*</span></label>
+            <input type="email" class="repo-input" name="authorEmail" required autocomplete="email" placeholder="For admin follow-up only (not displayed publicly)" />
+          </div>
+
+          <div style="display:flex; gap:12px;">
+            <div class="repo-field" style="flex:1;">
+              <label class="repo-label">Category <span class="repo-req">*</span></label>
+              <select class="repo-select" name="category">
+                <option value="standalone">Standalone</option>
+                <option value="connectivity">Connectivity</option>
+              </select>
+            </div>
+            <div class="repo-field" style="flex:1;">
+              <label class="repo-label">Grade Level <span class="repo-req">*</span></label>
+              <select class="repo-select" name="gradeLevel">
+                <option value="K-2">K-2</option>
+                <option value="3-5">3-5</option>
+                <option value="6-8">6-8</option>
+                <option value="9-12">9-12</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="repo-field">
+            <label class="repo-label">Standards Covered <span class="repo-req">*</span></label>
+            <textarea class="repo-textarea" name="standards" required placeholder="e.g. CCSS.MATH.CONTENT.8.F.A.1, CCSS.MATH.CONTENT.8.F.B.4"></textarea>
+          </div>
+
+          <div class="repo-field">
+            <label class="repo-label">Objectives <span class="repo-req">*</span></label>
+            <textarea class="repo-textarea" name="objectives" required placeholder="What will students learn or be able to do?"></textarea>
+          </div>
+
+          <div class="repo-field">
+            <label class="repo-label">Overview <span class="repo-req">*</span></label>
+            <textarea class="repo-textarea tall" name="overview" required placeholder="Describe the activity, its structure, and how students engage with it."></textarea>
+          </div>
+
+          <div class="repo-field">
+            <label class="repo-label">Teacher Moves <span class="repo-req">*</span></label>
+            <textarea class="repo-textarea tall" name="teacherMoves" required placeholder="Key instructional strategies, discussion prompts, timing suggestions, etc."></textarea>
+          </div>
+
+          <div class="repo-field">
+            <label class="repo-label">Template File <span class="repo-req">*</span></label>
+            <div class="repo-file-row">
+              <button type="button" class="repo-file-btn" id="template-file-btn">Choose .json file</button>
+              <span class="repo-file-name" id="template-file-name"></span>
+            </div>
+            <input type="file" class="repo-hidden-input" id="template-file-input" accept=".json,application/json" />
+          </div>
+
+          <div class="repo-field">
+            <label class="repo-label">Handouts (optional)</label>
+            <div class="repo-handouts-list" id="handouts-list"></div>
+            <button type="button" class="repo-add-handout-btn" id="add-handout-btn">+ Add Handout</button>
+          </div>
+
+          <button type="submit" class="repo-submit-btn" id="submit-btn">Submit Activity for Review</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const FIREBASE_URL = 'https://simcalcrevisited-default-rtdb.firebaseio.com';
+    let activitiesData = [];  // { key, ...activity }
+    let currentView = 'browse'; // 'browse' | 'detail'
+    let templateFileData = null;
+    let templateFileName = '';
+    let handouts = []; // { type: 'file'|'link', name, data?, mimeType?, url? }
+
+    // --- Tab switching ---
+    document.querySelectorAll('.repo-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.repo-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const target = tab.dataset.tab;
+        document.getElementById('browse-view').style.display = target === 'browse' ? '' : 'none';
+        document.getElementById('submit-view').style.display = target === 'submit' ? '' : 'none';
+      });
+    });
+
+    // --- Browse: fetch and render ---
+    async function loadActivities() {
+      const body = document.getElementById('browse-body');
+      body.innerHTML = '<div class="repo-loading"><div class="repo-spinner"></div><div>Loading activities...</div></div>';
+
+      try {
+        const res = await fetch(`${FIREBASE_URL}/activities.json`);
+        const raw = await res.json();
+        if (!raw) {
+          activitiesData = [];
+        } else {
+          activitiesData = Object.entries(raw)
+            .map(([key, val]) => ({ key, ...val }))
+            .filter(a => a.status === 'approved')
+            .sort((a, b) => (b.submittedAt || 0) - (a.submittedAt || 0));
+        }
+        renderGrid();
+      } catch (err) {
+        body.innerHTML = '<div class="repo-empty">Failed to load activities. Please try again later.</div>';
+        console.error('Load error:', err);
+      }
+    }
+
+    function renderGrid() {
+      const body = document.getElementById('browse-body');
+      const search = document.getElementById('search-input').value.toLowerCase();
+      const catFilter = document.getElementById('filter-category').value;
+      const gradeFilter = document.getElementById('filter-grade').value;
+
+      let filtered = activitiesData;
+      if (catFilter) filtered = filtered.filter(a => a.category === catFilter);
+      if (gradeFilter) filtered = filtered.filter(a => a.gradeLevel === gradeFilter);
+      if (search) {
+        filtered = filtered.filter(a =>
+          (a.title || '').toLowerCase().includes(search) ||
+          (a.standards || '').toLowerCase().includes(search) ||
+          (a.overview || '').toLowerCase().includes(search) ||
+          (a.author || '').toLowerCase().includes(search)
+        );
+      }
+
+      if (filtered.length === 0) {
+        body.innerHTML = '<div class="repo-empty">No activities found. Be the first to submit one!</div>';
+        return;
+      }
+
+      const grid = document.createElement('div');
+      grid.className = 'repo-grid';
+
+      for (const activity of filtered) {
+        const card = document.createElement('div');
+        card.className = 'repo-card';
+        card.innerHTML = `
+          <div class="repo-card-title">${esc(activity.title || 'Untitled')}</div>
+          <div class="repo-card-meta">
+            <span class="repo-card-author">by ${esc(activity.author || 'Unknown')}</span>
+            <span class="repo-badge ${activity.category || ''}">${esc(activity.category || '')}</span>
+            <span class="repo-badge grade">${esc(activity.gradeLevel || '')}</span>
+          </div>
+          <div class="repo-card-overview">${esc(activity.overview || '')}</div>
+        `;
+        card.addEventListener('click', () => renderDetail(activity));
+        grid.appendChild(card);
+      }
+
+      body.innerHTML = '';
+      body.appendChild(grid);
+    }
+
+    function renderDetail(activity) {
+      const body = document.getElementById('browse-body');
+      const detail = document.createElement('div');
+      detail.className = 'repo-detail';
+
+      const sections = [
+        { label: 'Standards Covered', value: activity.standards },
+        { label: 'Objectives', value: activity.objectives },
+        { label: 'Overview', value: activity.overview },
+        { label: 'Teacher Moves', value: activity.teacherMoves },
+      ];
+
+      let sectionsHTML = sections.map(s => `
+        <div class="repo-detail-section">
+          <div class="repo-detail-label">${s.label}</div>
+          <div class="repo-detail-value">${esc(s.value || 'Not provided')}</div>
+        </div>
+      `).join('');
+
+      const date = new Date(activity.submittedAt || 0);
+      const dateStr = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+      detail.innerHTML = `
+        <button class="repo-detail-back">&larr; Back to Activities</button>
+        <div class="repo-detail-title">${esc(activity.title || 'Untitled')}</div>
+        <div class="repo-detail-meta">
+          <span class="repo-card-author">by ${esc(activity.author || 'Unknown')}</span>
+          <span class="repo-badge ${activity.category || ''}">${esc(activity.category || '')}</span>
+          <span class="repo-badge grade">${esc(activity.gradeLevel || '')}</span>
+          <span class="repo-card-author">${dateStr}</span>
+        </div>
+        ${sectionsHTML}
+        <div class="repo-detail-downloads" id="detail-downloads"></div>
+      `;
+
+      body.innerHTML = '';
+      body.appendChild(detail);
+
+      // Back button
+      detail.querySelector('.repo-detail-back').addEventListener('click', () => renderGrid());
+
+      // Download buttons
+      const downloads = detail.querySelector('#detail-downloads');
+
+      if (activity.templateFile) {
+        const btn = document.createElement('button');
+        btn.className = 'repo-download-btn';
+        btn.textContent = 'Download Template';
+        btn.addEventListener('click', () => {
+          const blob = new Blob([JSON.stringify(activity.templateFile, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = activity.templateFileName || 'activity-template.json';
+          a.click();
+          URL.revokeObjectURL(url);
+        });
+        downloads.appendChild(btn);
+      }
+
+      // Handout downloads
+      const handoutList = activity.handouts || [];
+      for (let i = 0; i < handoutList.length; i++) {
+        const h = handoutList[i];
+        const btn = document.createElement('button');
+        btn.className = 'repo-download-btn secondary';
+        btn.textContent = h.name || `Handout ${i + 1}`;
+
+        if (h.type === 'link') {
+          btn.addEventListener('click', () => window.open(h.url, '_blank'));
+        } else {
+          // File stored in separate path — fetch and download
+          btn.addEventListener('click', async () => {
+            btn.textContent = 'Downloading...';
+            try {
+              const res = await fetch(`${FIREBASE_URL}/activity-handouts/${activity.key}/${i}.json`);
+              const data = await res.json();
+              if (data && data.data) {
+                const a = document.createElement('a');
+                a.href = data.data;
+                a.download = h.name || `handout-${i + 1}`;
+                a.click();
+              }
+            } catch (err) {
+              console.error('Download failed:', err);
+            }
+            btn.textContent = h.name || `Handout ${i + 1}`;
+          });
+        }
+        downloads.appendChild(btn);
+      }
+    }
+
+    // Filter event listeners
+    document.getElementById('search-input').addEventListener('input', renderGrid);
+    document.getElementById('filter-category').addEventListener('change', renderGrid);
+    document.getElementById('filter-grade').addEventListener('change', renderGrid);
+
+    // --- Submit form ---
+    const form = document.getElementById('submit-form');
+    const messagesEl = document.getElementById('submit-messages');
+
+    // Template file picker
+    document.getElementById('template-file-btn').addEventListener('click', () => {
+      document.getElementById('template-file-input').click();
+    });
+
+    document.getElementById('template-file-input').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          templateFileData = JSON.parse(reader.result);
+          templateFileName = file.name;
+          document.getElementById('template-file-name').textContent = file.name;
+        } catch (err) {
+          showMessage('error', 'Invalid JSON file. Please select a valid SimCalc template file.');
+          templateFileData = null;
+          templateFileName = '';
+          document.getElementById('template-file-name').textContent = '';
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // Handouts
+    document.getElementById('add-handout-btn').addEventListener('click', () => addHandoutRow());
+
+    function addHandoutRow(existing) {
+      const list = document.getElementById('handouts-list');
+      const index = list.children.length;
+      const row = document.createElement('div');
+      row.className = 'repo-handout-row';
+      row.dataset.index = index;
+
+      row.innerHTML = `
+        <select class="handout-type">
+          <option value="file">Upload File</option>
+          <option value="link">Link (URL)</option>
+        </select>
+        <input type="text" class="handout-value" placeholder="Choose a file or enter a URL..." readonly />
+        <input type="file" class="repo-hidden-input handout-file-input" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.gif" />
+        <button type="button" class="repo-handout-remove">&times;</button>
+      `;
+
+      const typeSelect = row.querySelector('.handout-type');
+      const valueInput = row.querySelector('.handout-value');
+      const fileInput = row.querySelector('.handout-file-input');
+      const removeBtn = row.querySelector('.repo-handout-remove');
+
+      // Switch between file and link mode
+      typeSelect.addEventListener('change', () => {
+        if (typeSelect.value === 'link') {
+          valueInput.readOnly = false;
+          valueInput.placeholder = 'https://drive.google.com/...';
+          valueInput.value = '';
+          // Clear any stored file data for this index
+          handouts[index] = { type: 'link', name: '', url: '' };
+        } else {
+          valueInput.readOnly = true;
+          valueInput.placeholder = 'Choose a file...';
+          valueInput.value = '';
+          handouts[index] = null;
+        }
+      });
+
+      // Click value input when in file mode to trigger file picker
+      valueInput.addEventListener('click', () => {
+        if (typeSelect.value === 'file') fileInput.click();
+      });
+
+      // URL input
+      valueInput.addEventListener('input', () => {
+        if (typeSelect.value === 'link') {
+          handouts[index] = { type: 'link', name: valueInput.value.split('/').pop() || 'Link', url: valueInput.value };
+        }
+      });
+
+      // File input
+      fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+          showMessage('error', 'Handout files must be under 5 MB. For larger files, use a link.');
+          return;
+        }
+        valueInput.value = file.name;
+        const reader = new FileReader();
+        reader.onload = () => {
+          handouts[index] = { type: 'file', name: file.name, data: reader.result, mimeType: file.type, size: file.size };
+        };
+        reader.readAsDataURL(file);
+      });
+
+      // Remove
+      removeBtn.addEventListener('click', () => {
+        handouts[index] = null;
+        row.remove();
+      });
+
+      // Initialize handouts array
+      handouts[index] = null;
+      list.appendChild(row);
+    }
+
+    // Submit handler
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideMessages();
+
+      const title = form.title.value.trim();
+      const author = form.author.value.trim();
+      const authorEmail = form.authorEmail.value.trim();
+      const category = form.category.value;
+      const gradeLevel = form.gradeLevel.value;
+      const standards = form.standards.value.trim();
+      const objectives = form.objectives.value.trim();
+      const overview = form.overview.value.trim();
+      const teacherMoves = form.teacherMoves.value.trim();
+
+      // Validation
+      if (!title || !author || !authorEmail || !standards || !objectives || !overview || !teacherMoves) {
+        showMessage('error', 'Please fill in all required fields.');
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(authorEmail)) {
+        showMessage('error', 'Please enter a valid email address.');
+        return;
+      }
+      if (!templateFileData) {
+        showMessage('error', 'Please attach a template file (.json).');
+        return;
+      }
+
+      const submitBtn = document.getElementById('submit-btn');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting...';
+
+      // Collect valid handouts
+      const validHandouts = handouts.filter(h => h !== null);
+      const handoutsMeta = validHandouts.map(h => ({
+        name: h.name,
+        type: h.type,
+        url: h.type === 'link' ? h.url : null,
+        mimeType: h.mimeType || null,
+        size: h.size || null,
+      }));
+
+      const payload = {
+        title, author, authorEmail, category, gradeLevel,
+        standards, objectives, overview, teacherMoves,
+        templateFile: templateFileData,
+        templateFileName: templateFileName,
+        handouts: handoutsMeta,
+        status: 'pending',
+        submittedAt: Date.now(),
+        reviewedAt: null,
+        adminNotes: '',
+      };
+
+      try {
+        // Post activity
+        const res = await fetch(`${FIREBASE_URL}/activities.json`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error(`Firebase error: ${res.status}`);
+        const { name: activityKey } = await res.json();
+
+        // Upload file handouts separately
+        const fileHandouts = validHandouts.filter(h => h.type === 'file');
+        for (let i = 0; i < validHandouts.length; i++) {
+          const h = validHandouts[i];
+          if (h.type === 'file' && h.data) {
+            await fetch(`${FIREBASE_URL}/activity-handouts/${activityKey}/${i}.json`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ data: h.data, mimeType: h.mimeType }),
+            });
+          }
+        }
+
+        showMessage('success', 'Your activity has been submitted for review! It will appear in the repository once approved.');
+        form.reset();
+        templateFileData = null;
+        templateFileName = '';
+        document.getElementById('template-file-name').textContent = '';
+        document.getElementById('handouts-list').innerHTML = '';
+        handouts = [];
+      } catch (err) {
+        showMessage('error', 'Failed to submit activity. Please try again.');
+        console.error('Submit error:', err);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Activity for Review';
+      }
+    });
+
+    // --- Helpers ---
+    function esc(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function showMessage(type, msg) {
+      messagesEl.innerHTML = `<div class="repo-${type}">${esc(msg)}</div>`;
+    }
+
+    function hideMessages() {
+      messagesEl.innerHTML = '';
+    }
+
+    // --- Init ---
+    loadActivities();
+  </script>
+</body>
+</html>

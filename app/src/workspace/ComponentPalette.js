@@ -27,6 +27,17 @@ export class ComponentPalette {
     howToBtn.addEventListener('click', () => this._showHowToModal());
     this.container.appendChild(howToBtn);
 
+    // Activities button
+    const activitiesBtn = document.createElement('button');
+    activitiesBtn.className = 'about-btn';
+    activitiesBtn.textContent = 'Activities';
+    activitiesBtn.title = 'Browse and share lesson activities';
+    activitiesBtn.addEventListener('click', () => {
+      const base = document.querySelector('base')?.href || '';
+      window.open(base + 'activities.html', '_blank');
+    });
+    this.container.appendChild(activitiesBtn);
+
     // About button
     const aboutBtn = document.createElement('button');
     aboutBtn.className = 'about-btn';
