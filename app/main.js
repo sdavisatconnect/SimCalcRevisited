@@ -128,6 +128,7 @@ function resetToBlank() {
   // Remove all actors
   sim.actors = [];
   sim.worldType = null;
+  sim.targetSegments = [];
   bus.emit('actors:changed');
 
   // Reset speed
@@ -401,6 +402,9 @@ bus.on('challenge:join-request', async () => {
 
   const { roomCode, initials, challengeData, settings } = result;
 
+  // Set target segments on simulation (if any)
+  sim.targetSegments = (challengeData.targetSegments || []).map(s => ({ ...s }));
+
   // Reconstruct the challenge workspace
   TemplateIO.reconstruct(challengeData, sim, workspace, panelFactory, interactionMgr, bus, createPanel);
 
@@ -533,6 +537,8 @@ bus.on('challenge:author-start', ({ type }) => {
               activePollInterval = null;
             }
             const submissions = await roomManager.getSubmissions(roomCode);
+            // Transfer target segments to main sim before exiting author mode
+            sim.targetSegments = (challengeData.targetSegments || []).map(s => ({ ...s }));
             // Exit author mode and show results
             if (activeAuthorMode) {
               activeAuthorMode.exit();
@@ -566,6 +572,8 @@ bus.on('challenge:author-start', ({ type }) => {
 
     onPractice: (challengeData, count) => {
       const submissions = PracticeDataGenerator.generate(sim, count);
+      // Transfer target segments to main sim before exiting author mode
+      sim.targetSegments = (challengeData.targetSegments || []).map(s => ({ ...s }));
       // Exit author mode first, then show results
       if (activeAuthorMode) {
         activeAuthorMode.exit();

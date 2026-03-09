@@ -63,6 +63,12 @@ export class ChallengeTemplateIO {
         tiledGraphType: config.tiledGraphType || 'position',
         showReferenceInResults: config.showReferenceInResults !== false,
       },
+      targetSegments: (config.targetSegments || []).map(seg => ({
+        startTime: seg.startTime,
+        startPosition: seg.startPosition,
+        endTime: seg.endTime,
+        endPosition: seg.endPosition,
+      })),
     };
   }
 

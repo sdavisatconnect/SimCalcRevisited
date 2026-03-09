@@ -9,6 +9,7 @@ export class Simulation {
     this.currentTime = 0;
     this.isPlaying = false;
     this.playbackSpeed = 1.0;
+    this.targetSegments = [];
   }
 
   addActor(actor) {

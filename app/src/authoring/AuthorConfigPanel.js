@@ -129,6 +129,86 @@ export class AuthorConfigPanel {
     const refRow = this._checkbox('showRef', 'Show reference trace in results', true);
     scrollArea.appendChild(refRow.el);
     this.showRefCb = refRow.cb;
+
+    // --- Target Segments ---
+    this._buildTargetSegmentsSection(scrollArea);
+  }
+
+  _buildTargetSegmentsSection(scrollArea) {
+    scrollArea.appendChild(this._sectionHeader('Target Segments'));
+
+    const info = document.createElement('div');
+    info.className = 'target-segment-info';
+    info.textContent = 'Orange line segments shown on the position graph that students must match.';
+    scrollArea.appendChild(info);
+
+    this._targetSegments = [];
+    this._targetSegmentsList = document.createElement('div');
+    this._targetSegmentsList.className = 'target-segment-list';
+    scrollArea.appendChild(this._targetSegmentsList);
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'target-segment-add-btn';
+    addBtn.textContent = '+ Add Segment';
+    addBtn.addEventListener('click', () => {
+      const seg = { startTime: 0, startPosition: 0, endTime: 1, endPosition: 0 };
+      this._targetSegments.push(seg);
+      this._addSegmentRow(seg, this._targetSegments.length - 1);
+      this._emitTargetSegmentsChanged();
+    });
+    scrollArea.appendChild(addBtn);
+  }
+
+  _addSegmentRow(seg, index) {
+    const row = document.createElement('div');
+    row.className = 'target-segment-row';
+
+    const fields = [
+      { key: 'startTime', label: 't\u2081', value: seg.startTime },
+      { key: 'startPosition', label: 'p\u2081', value: seg.startPosition },
+      { key: 'endTime', label: 't\u2082', value: seg.endTime },
+      { key: 'endPosition', label: 'p\u2082', value: seg.endPosition },
+    ];
+
+    for (const { key, label, value } of fields) {
+      const lbl = document.createElement('label');
+      lbl.textContent = label;
+      row.appendChild(lbl);
+
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.step = '0.5';
+      input.className = 'target-segment-input';
+      input.value = value;
+      input.addEventListener('change', () => {
+        const val = parseFloat(input.value);
+        if (!isNaN(val)) {
+          seg[key] = val;
+          this._emitTargetSegmentsChanged();
+        }
+      });
+      row.appendChild(input);
+    }
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'target-segment-remove';
+    removeBtn.textContent = '\u2715';
+    removeBtn.title = 'Remove segment';
+    removeBtn.addEventListener('click', () => {
+      const idx = this._targetSegments.indexOf(seg);
+      if (idx !== -1) this._targetSegments.splice(idx, 1);
+      row.remove();
+      this._emitTargetSegmentsChanged();
+    });
+    row.appendChild(removeBtn);
+
+    this._targetSegmentsList.appendChild(row);
+  }
+
+  _emitTargetSegmentsChanged() {
+    // Filter out invalid segments (endTime must be > startTime)
+    const valid = this._targetSegments.filter(s => s.endTime > s.startTime);
+    this.bus.emit('targetSegments:changed', { segments: [...valid] });
   }
 
   _sectionHeader(text) {
@@ -181,6 +261,7 @@ export class AuthorConfigPanel {
       overlaidGraphType: this.overlaidSelect.value,
       tiledGraphType: this.tiledSelect.value,
       showReferenceInResults: this.showRefCb.checked,
+      targetSegments: this._targetSegments.filter(s => s.endTime > s.startTime),
     };
   }
 
@@ -215,6 +296,17 @@ export class AuthorConfigPanel {
       this.overlaidSelect.value = challengeData.resultsConfig.overlaidGraphType || 'position';
       this.tiledSelect.value = challengeData.resultsConfig.tiledGraphType || 'position';
       this.showRefCb.checked = challengeData.resultsConfig.showReferenceInResults !== false;
+    }
+
+    // Target segments
+    this._targetSegments = [];
+    this._targetSegmentsList.innerHTML = '';
+    if (challengeData.targetSegments) {
+      for (const seg of challengeData.targetSegments) {
+        const copy = { ...seg };
+        this._targetSegments.push(copy);
+        this._addSegmentRow(copy, this._targetSegments.length - 1);
+      }
     }
   }
 }

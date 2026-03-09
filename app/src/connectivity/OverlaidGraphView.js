@@ -30,6 +30,11 @@ export class OverlaidGraphView {
     this.renderer.clearData();
     const group = this.renderer.dataGroup;
 
+    // Draw target segments behind student traces
+    if (this.graphType === 'position') {
+      this._drawTargetSegments(group);
+    }
+
     for (const student of this.students) {
       const isVisible = this.visibleIds.has(student.id);
 
@@ -140,6 +145,47 @@ export class OverlaidGraphView {
     text.setAttribute('font-family', 'sans-serif');
     text.textContent = student.initials;
     group.appendChild(text);
+  }
+
+  _drawTargetSegments(group) {
+    const segments = this.sim.targetSegments;
+    if (!segments || segments.length === 0) return;
+
+    const targetGroup = document.createElementNS(SVG_NS, 'g');
+    targetGroup.setAttribute('class', 'target-segments');
+
+    for (const seg of segments) {
+      if (seg.endTime <= seg.startTime) continue;
+
+      const s0 = this.renderer.toScreen(seg.startTime, seg.startPosition);
+      const s1 = this.renderer.toScreen(seg.endTime, seg.endPosition);
+
+      const line = document.createElementNS(SVG_NS, 'line');
+      line.setAttribute('x1', s0.x);
+      line.setAttribute('y1', s0.y);
+      line.setAttribute('x2', s1.x);
+      line.setAttribute('y2', s1.y);
+      line.setAttribute('stroke', '#ff9f43');
+      line.setAttribute('stroke-width', '3');
+      line.setAttribute('stroke-linecap', 'round');
+      line.setAttribute('opacity', '0.7');
+      line.setAttribute('class', 'target-segment-line');
+      targetGroup.appendChild(line);
+
+      for (const pt of [s0, s1]) {
+        const dot = document.createElementNS(SVG_NS, 'circle');
+        dot.setAttribute('cx', pt.x);
+        dot.setAttribute('cy', pt.y);
+        dot.setAttribute('r', '3.5');
+        dot.setAttribute('fill', '#ff9f43');
+        dot.setAttribute('stroke', '#fff');
+        dot.setAttribute('stroke-width', '1');
+        dot.setAttribute('class', 'target-segment-dot');
+        targetGroup.appendChild(dot);
+      }
+    }
+
+    group.appendChild(targetGroup);
   }
 
   drawTimeCursor(t) {

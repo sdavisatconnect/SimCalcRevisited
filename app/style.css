@@ -2160,6 +2160,95 @@ body {
   border-color: #3498db;
 }
 
+/* ===== Target Segments (Author Config) ===== */
+.target-segment-info {
+  font-size: 11px;
+  color: #888;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.target-segment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.target-segment-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: rgba(255, 159, 67, 0.08);
+  border: 1px solid rgba(255, 159, 67, 0.2);
+  border-radius: 6px;
+  flex-wrap: wrap;
+}
+
+.target-segment-row label {
+  font-size: 10px;
+  color: #999;
+  min-width: 14px;
+  text-align: right;
+}
+
+.target-segment-input {
+  width: 50px;
+  padding: 3px 5px;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  background: #1a1a2e;
+  color: #eee;
+  font-size: 12px;
+  text-align: center;
+  outline: none;
+}
+
+.target-segment-input:focus {
+  border-color: #ff9f43;
+}
+
+.target-segment-remove {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #e74c3c;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  opacity: 0.6;
+}
+
+.target-segment-remove:hover {
+  opacity: 1;
+  background: rgba(231, 76, 60, 0.15);
+}
+
+.target-segment-add-btn {
+  padding: 6px 10px;
+  border: 1px dashed rgba(255, 159, 67, 0.3);
+  border-radius: 6px;
+  background: transparent;
+  color: #ff9f43;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  margin-bottom: 10px;
+}
+
+.target-segment-add-btn:hover {
+  background: rgba(255, 159, 67, 0.08);
+  border-color: rgba(255, 159, 67, 0.5);
+}
+
+/* Target segment SVG overlay (non-interactive) */
+.target-segment-line,
+.target-segment-dot {
+  pointer-events: none;
+}
+
 /* ===== WorldSelector: Author a Challenge ===== */
 .world-selector-action-row {
   display: flex;

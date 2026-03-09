@@ -95,6 +95,7 @@ export class ChallengeAuthorMode {
     this.sim.posRange = { ...seed.posRange };
     this.sim.velRange = { ...seed.velRange };
     this.sim.accelRange = { ...seed.accelRange };
+    this.sim.targetSegments = (challengeData.targetSegments || []).map(s => ({ ...s }));
 
     this._buildUI();
 
@@ -326,6 +327,12 @@ export class ChallengeAuthorMode {
       this.workspace.redrawAll();
     });
 
+    // Target segments changed (from config panel)
+    this.bus.on('targetSegments:changed', ({ segments }) => {
+      this.sim.targetSegments = segments;
+      this.workspace.redrawAll();
+    });
+
     // Panel create requests
     this._spawnOffset = 0;
     this.bus.on('panel:create-request', ({ type, x, y }) => {
@@ -480,6 +487,7 @@ export class ChallengeAuthorMode {
     this.sim.posRange = { ...seed.posRange };
     this.sim.velRange = { ...seed.velRange };
     this.sim.accelRange = { ...seed.accelRange };
+    this.sim.targetSegments = (data.targetSegments || []).map(s => ({ ...s }));
 
     for (const ad of data.referenceActors) {
       const plf = new PiecewiseLinearFunction(
