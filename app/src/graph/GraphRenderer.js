@@ -7,12 +7,13 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
  * PositionGraph and VelocityGraph both use this.
  */
 export class GraphRenderer {
-  constructor(container, { xRange, yRange, xLabel, yLabel }) {
+  constructor(container, { xRange, yRange, xLabel, yLabel, yMaxTicks }) {
     this.container = container;
     this.xRange = xRange;
     this.yRange = yRange;
     this.xLabel = xLabel;
     this.yLabel = yLabel;
+    this.yMaxTicks = yMaxTicks || 8;
 
     // Padding for axis labels and ticks
     this.padding = { top: 28, right: 16, bottom: 32, left: 48 };
@@ -92,7 +93,7 @@ export class GraphRenderer {
     }
 
     // Horizontal gridlines (value axis)
-    const yStep = this.niceStep(this.yRange.max - this.yRange.min, 8);
+    const yStep = this.niceStep(this.yRange.max - this.yRange.min, this.yMaxTicks);
     for (let v = Math.ceil(this.yRange.min / yStep) * yStep; v <= this.yRange.max; v += yStep) {
       const { y } = this.toScreen(0, v);
       this.gridGroup.appendChild(this.makeLine(p.x, y, p.x + p.w, y, 'grid-line'));
@@ -123,7 +124,7 @@ export class GraphRenderer {
     }
 
     // Tick labels - Y
-    const yStep = this.niceStep(this.yRange.max - this.yRange.min, 8);
+    const yStep = this.niceStep(this.yRange.max - this.yRange.min, this.yMaxTicks);
     for (let v = Math.ceil(this.yRange.min / yStep) * yStep; v <= this.yRange.max; v += yStep) {
       const { y } = this.toScreen(0, v);
       const label = this.makeText(p.x - 6, y + 3, this.formatTick(v), 'tick-label');
