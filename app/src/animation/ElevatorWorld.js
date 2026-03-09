@@ -47,10 +47,14 @@ export class ElevatorWorld {
     this.labelWidth = 36;
     this.buildingTop = this.displayHeight * 0.06;
     this.buildingBottom = this.displayHeight * 0.92;
+    const posRange = this.sim.posRange;
+    const span = (posRange.max - posRange.min) || 1;
+    this.floorHeight = (this.buildingBottom - this.buildingTop) / span;
+    const carBasedShaftW = this.floorHeight * 0.6 + 16;  // car width + gap
     // Dynamic shaft width for many actors (results mode with 30+ students)
     const numActors = Math.max(this.linkedActors.length, 1);
     const availW = this.displayWidth - this.labelWidth - 20;
-    this.shaftWidth = Math.max(16, Math.min(56, Math.floor(availW / numActors) - 4));
+    this.shaftWidth = Math.max(16, Math.min(carBasedShaftW, Math.floor(availW / numActors) - 4));
 
     this.drawFrame(this.sim.currentTime);
   }
@@ -156,8 +160,8 @@ export class ElevatorWorld {
       // Elevator car at current position
       const pos = actor.getPositionAt(currentTime);
       const carY = this.posToScreenY(pos);  // bottom of car (floor level)
-      const carW = this.shaftWidth - 8;
-      const carH = 40;  // tall enough to enclose the robot character
+      const carH = this.floorHeight;        // exactly 1 floor tall
+      const carW = carH * 0.6;              // narrower than tall (rectangular elevator)
 
       const carLeft = cx - carW / 2;
       const carTop = carY - carH;
@@ -184,8 +188,9 @@ export class ElevatorWorld {
       ctx.fillRect(carLeft, carTop, carW, carH);
 
       // Character standing inside the car (on the car floor)
-      // Dynamic scale: smaller when many actors
-      const charScale = n > 10 ? Math.max(0.2, 0.55 * (10 / n)) : 0.55;
+      // Scale to fit 1-floor car, and shrink further when many actors
+      const floorScale = Math.min((carH - 4) / 40, 0.55);
+      const charScale = n > 10 ? Math.max(0.2, floorScale * (10 / n)) : floorScale;
       drawCharacter(ctx, cx, carY, actor.color, actor.name, charScale);
 
       // Car frame — outer walls, ceiling, floor
