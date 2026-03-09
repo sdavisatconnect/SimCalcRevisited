@@ -14,6 +14,9 @@ export class GraphRenderer {
     this.xLabel = xLabel;
     this.yLabel = yLabel;
     this.yMaxTicks = yMaxTicks || 8;
+    // Custom tick steps (null = auto via niceStep)
+    this.xTickStep = null;
+    this.yTickStep = null;
 
     // Padding for axis labels and ticks
     this.padding = { top: 28, right: 16, bottom: 32, left: 48 };
@@ -86,14 +89,14 @@ export class GraphRenderer {
     const p = this.plotArea;
 
     // Vertical gridlines (time axis)
-    const xStep = this.niceStep(this.xRange.max - this.xRange.min, 10);
+    const xStep = this.xTickStep || this.niceStep(this.xRange.max - this.xRange.min, 10);
     for (let t = Math.ceil(this.xRange.min / xStep) * xStep; t <= this.xRange.max; t += xStep) {
       const { x } = this.toScreen(t, 0);
       this.gridGroup.appendChild(this.makeLine(x, p.y, x, p.y + p.h, 'grid-line'));
     }
 
     // Horizontal gridlines (value axis)
-    const yStep = this.niceStep(this.yRange.max - this.yRange.min, this.yMaxTicks);
+    const yStep = this.yTickStep || this.niceStep(this.yRange.max - this.yRange.min, this.yMaxTicks);
     for (let v = Math.ceil(this.yRange.min / yStep) * yStep; v <= this.yRange.max; v += yStep) {
       const { y } = this.toScreen(0, v);
       this.gridGroup.appendChild(this.makeLine(p.x, y, p.x + p.w, y, 'grid-line'));
@@ -115,7 +118,7 @@ export class GraphRenderer {
     this.axisGroup.appendChild(this.makeLine(xZero, p.y, xZero, p.y + p.h, 'axis-line'));
 
     // Tick labels - X
-    const xStep = this.niceStep(this.xRange.max - this.xRange.min, 10);
+    const xStep = this.xTickStep || this.niceStep(this.xRange.max - this.xRange.min, 10);
     for (let t = Math.ceil(this.xRange.min / xStep) * xStep; t <= this.xRange.max; t += xStep) {
       const { x } = this.toScreen(t, 0);
       const label = this.makeText(x, p.y + p.h + 14, this.formatTick(t), 'tick-label');
@@ -124,7 +127,7 @@ export class GraphRenderer {
     }
 
     // Tick labels - Y
-    const yStep = this.niceStep(this.yRange.max - this.yRange.min, this.yMaxTicks);
+    const yStep = this.yTickStep || this.niceStep(this.yRange.max - this.yRange.min, this.yMaxTicks);
     for (let v = Math.ceil(this.yRange.min / yStep) * yStep; v <= this.yRange.max; v += yStep) {
       const { y } = this.toScreen(0, v);
       const label = this.makeText(p.x - 6, y + 3, this.formatTick(v), 'tick-label');
@@ -240,9 +243,13 @@ export class GraphRenderer {
   }
 
   /** Update axis ranges and redraw grid/axes */
-  setRanges(xRange, yRange) {
+  setRanges(xRange, yRange, tickSteps) {
     if (xRange) this.xRange = { ...xRange };
     if (yRange) this.yRange = { ...yRange };
+    if (tickSteps) {
+      this.xTickStep = tickSteps.xTickStep || null;
+      this.yTickStep = tickSteps.yTickStep || null;
+    }
     this._resize();
   }
 

@@ -1223,6 +1223,14 @@ body {
   font-size: 12px;
 }
 
+.popover-tick-row {
+  margin-bottom: 8px;
+}
+
+.popover-tick-input {
+  width: 60px;
+}
+
 .popover-apply-btn {
   width: 100%;
   padding: 5px 0;
@@ -2208,4 +2216,143 @@ body {
   background: rgba(230, 126, 34, 0.25);
   color: #fff;
   border-color: #e67e22;
+}
+
+/* ---- Feedback Form (inside How To modal) ---- */
+
+.feedback-section {
+  margin-top: 12px;
+}
+
+.feedback-divider {
+  border-top: 1px solid #334;
+  margin-bottom: 16px;
+}
+
+.feedback-heading {
+  font-size: 16px;
+  font-weight: 700;
+  color: #eef;
+  margin: 0 0 12px 0;
+}
+
+.feedback-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.feedback-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.feedback-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #aab;
+}
+
+.feedback-req {
+  color: #e74c3c;
+}
+
+.feedback-input,
+.feedback-select,
+.feedback-textarea {
+  padding: 7px 10px;
+  border: 1px solid #0f3460;
+  border-radius: 5px;
+  background: #16213e;
+  color: #dde;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.feedback-input:focus,
+.feedback-select:focus,
+.feedback-textarea:focus {
+  border-color: #3498db;
+}
+
+.feedback-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.feedback-select {
+  cursor: pointer;
+}
+
+.feedback-attachments {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.feedback-attach-row {
+  display: flex;
+  gap: 8px;
+}
+
+.feedback-attach-btn {
+  padding: 5px 12px;
+  border: 1px solid #0f3460;
+  border-radius: 5px;
+  background: #1a2a44;
+  color: #8af;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.feedback-attach-btn:hover {
+  background: #243654;
+  border-color: #3498db;
+}
+
+.feedback-attach-status {
+  font-size: 11px;
+  color: #6a8;
+  min-height: 14px;
+}
+
+.feedback-error {
+  font-size: 12px;
+  color: #e74c3c;
+  padding: 6px 10px;
+  background: rgba(231, 76, 60, 0.1);
+  border-radius: 4px;
+}
+
+.feedback-success {
+  font-size: 12px;
+  color: #2ecc71;
+  padding: 6px 10px;
+  background: rgba(46, 204, 113, 0.1);
+  border-radius: 4px;
+}
+
+.feedback-submit-btn {
+  padding: 8px 0;
+  border: none;
+  border-radius: 6px;
+  background: #3498db;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.feedback-submit-btn:hover {
+  background: #2980b9;
+}
+
+.feedback-submit-btn:disabled {
+  background: #555;
+  cursor: not-allowed;
 }

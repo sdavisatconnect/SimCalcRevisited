@@ -54,9 +54,17 @@ export class GraphScalePopover {
     const xRow = this._makeRow('Time (X)', 'xMin', 'xMax');
     this.popover.appendChild(xRow);
 
+    // X tick step row
+    const xTickRow = this._makeTickRow('X Ticks', 'xTick');
+    this.popover.appendChild(xTickRow);
+
     // Y range row
     const yRow = this._makeRow('Value (Y)', 'yMin', 'yMax');
     this.popover.appendChild(yRow);
+
+    // Y tick step row
+    const yTickRow = this._makeTickRow('Y Ticks', 'yTick');
+    this.popover.appendChild(yTickRow);
 
     // Apply button
     const applyBtn = document.createElement('button');
@@ -101,6 +109,27 @@ export class GraphScalePopover {
     return row;
   }
 
+  _makeTickRow(label, key) {
+    const row = document.createElement('div');
+    row.className = 'popover-row popover-tick-row';
+
+    const lbl = document.createElement('span');
+    lbl.className = 'popover-label';
+    lbl.textContent = label;
+    row.appendChild(lbl);
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.className = 'popover-input popover-tick-input';
+    input.step = 'any';
+    input.min = '0.01';
+    input.placeholder = 'auto';
+    this[key + 'Input'] = input;
+    row.appendChild(input);
+
+    return row;
+  }
+
   toggle() {
     if (this.isOpen) {
       this.close();
@@ -115,6 +144,8 @@ export class GraphScalePopover {
     this.xMaxInput.value = this.renderer.xRange.max;
     this.yMinInput.value = this.renderer.yRange.min;
     this.yMaxInput.value = this.renderer.yRange.max;
+    this.xTickInput.value = this.renderer.xTickStep || '';
+    this.yTickInput.value = this.renderer.yTickStep || '';
 
     this.popover.classList.add('open');
     this.gearBtn.classList.add('active');
@@ -143,13 +174,21 @@ export class GraphScalePopover {
     const yMin = parseFloat(this.yMinInput.value);
     const yMax = parseFloat(this.yMaxInput.value);
 
-    // Validate
+    // Validate ranges
     if (isNaN(xMin) || isNaN(xMax) || isNaN(yMin) || isNaN(yMax)) return;
     if (xMin >= xMax || yMin >= yMax) return;
 
+    // Tick steps: blank/0/NaN = auto (null), otherwise use the value
+    const xTick = parseFloat(this.xTickInput.value);
+    const yTick = parseFloat(this.yTickInput.value);
+
     this.renderer.setRanges(
       { min: xMin, max: xMax },
-      { min: yMin, max: yMax }
+      { min: yMin, max: yMax },
+      {
+        xTickStep: (xTick > 0) ? xTick : null,
+        yTickStep: (yTick > 0) ? yTick : null,
+      }
     );
     this.onRangeChanged();
     this.close();
