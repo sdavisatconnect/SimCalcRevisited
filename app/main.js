@@ -23,6 +23,7 @@ import { ChallengeMode } from './src/connectivity/ChallengeMode.js';
 import { StudentSubmitter } from './src/connectivity/StudentSubmitter.js';
 import { ResultsViewController } from './src/connectivity/ResultsViewController.js';
 import { PracticeDataGenerator } from './src/connectivity/PracticeDataGenerator.js';
+import { ChallengeAuthorMode } from './src/authoring/ChallengeAuthorMode.js';
 
 // --- Setup ---
 const bus = new EventBus();
@@ -144,6 +145,12 @@ function resetToBlank() {
   // Show broadcast button (may have been hidden in student mode)
   const broadcastBtn = document.getElementById('btn-broadcast');
   if (broadcastBtn) broadcastBtn.style.display = '';
+
+  // Hide Collect Again button and clear stored room code / practice state
+  activeResultsRoomCode = null;
+  practiceCount = 0;
+  const collectBtn = document.getElementById('btn-collect-again');
+  if (collectBtn) collectBtn.style.display = 'none';
 
   // Show world selector overlay again
   new WorldSelector(workspaceEl, sim, bus);
@@ -440,6 +447,10 @@ bus.on('challenge:join-request', async () => {
 
 // --- Teacher Results Display ---
 let activeResultsCtrl = null;
+let activeResultsRoomCode = null;  // Firebase room code, or null
+let practiceCount = 0;             // practice mode student count (0 = not practice)
+
+const collectAgainBtn = document.getElementById('btn-collect-again');
 
 bus.on('challenge:show-results', ({ submissions, challengeData, roomCode }) => {
   if (!submissions) {
@@ -449,7 +460,150 @@ bus.on('challenge:show-results', ({ submissions, challengeData, roomCode }) => {
 
   activeResultsCtrl = new ResultsViewController(bus, workspace, sim, createPanel, interactionMgr);
   activeResultsCtrl.enterResultsMode(submissions);
+
+  // Show "Collect Again" for both live broadcasts and practice mode
+  if (roomCode === 'practice') {
+    activeResultsRoomCode = null;
+    practiceCount = Object.keys(submissions).length;
+    collectAgainBtn.style.display = '';
+  } else if (roomCode) {
+    activeResultsRoomCode = roomCode;
+    practiceCount = 0;
+    collectAgainBtn.style.display = '';
+  }
 });
+
+// --- Collect Again: re-fetch from Firebase or regenerate practice data ---
+collectAgainBtn.addEventListener('click', async () => {
+  collectAgainBtn.disabled = true;
+
+  try {
+    let submissions;
+
+    if (practiceCount > 0) {
+      // Practice mode: regenerate with a few extra "late arrivals"
+      const extraStudents = Math.floor(Math.random() * 3) + 1; // 1–3 new students
+      practiceCount += extraStudents;
+      submissions = PracticeDataGenerator.generate(sim, practiceCount);
+    } else if (activeResultsRoomCode) {
+      // Live mode: re-fetch from Firebase
+      submissions = await roomManager.getSubmissions(activeResultsRoomCode);
+    } else {
+      return;
+    }
+
+    if (!submissions) {
+      alert('No submissions found.');
+      return;
+    }
+
+    // Exit current results and re-enter with fresh data
+    if (activeResultsCtrl) {
+      activeResultsCtrl.exitResultsMode();
+    }
+    activeResultsCtrl = new ResultsViewController(bus, workspace, sim, createPanel, interactionMgr);
+    activeResultsCtrl.enterResultsMode(submissions);
+  } catch (err) {
+    console.error('Failed to collect submissions:', err);
+    alert('Failed to collect. Check your connection and try again.');
+  } finally {
+    collectAgainBtn.disabled = false;
+  }
+});
+
+// --- Challenge Author Mode ---
+let activeAuthorMode = null;
+const appShell = document.querySelector('.app-shell');
+
+bus.on('challenge:author-start', ({ type }) => {
+  activeAuthorMode = new ChallengeAuthorMode(appShell, {
+    onBroadcast: async (challengeData) => {
+      // Use existing broadcast flow
+      try {
+        const roomCode = await roomManager.createRoom(challengeData, {});
+        activeRoomCode = roomCode;
+
+        const overlay = new RoomCodeOverlay();
+        overlay.show(
+          roomCode,
+          async () => {
+            if (activePollInterval) {
+              clearInterval(activePollInterval);
+              activePollInterval = null;
+            }
+            const submissions = await roomManager.getSubmissions(roomCode);
+            // Exit author mode and show results
+            if (activeAuthorMode) {
+              activeAuthorMode.exit();
+              activeAuthorMode = null;
+            }
+            bus.emit('challenge:show-results', { submissions, challengeData, roomCode });
+          },
+          () => {
+            if (activePollInterval) {
+              clearInterval(activePollInterval);
+              activePollInterval = null;
+            }
+            activeRoomCode = null;
+          }
+        );
+
+        activePollInterval = setInterval(async () => {
+          try {
+            const count = await roomManager.getSubmissionCount(roomCode);
+            overlay.updateSubmissionCount(count);
+          } catch (e) {
+            console.warn('Polling error:', e);
+          }
+        }, 7000);
+
+      } catch (err) {
+        console.error('Failed to broadcast from author mode:', err);
+        alert('Failed to broadcast. Check your connection and try again.');
+      }
+    },
+
+    onPractice: (challengeData, count) => {
+      const submissions = PracticeDataGenerator.generate(sim, count);
+      // Exit author mode first, then show results
+      if (activeAuthorMode) {
+        activeAuthorMode.exit();
+        activeAuthorMode = null;
+      }
+      bus.emit('challenge:show-results', { submissions, challengeData, roomCode: 'practice' });
+    },
+
+    onExit: () => {
+      activeAuthorMode = null;
+      // Show the world selector again
+      new WorldSelector(workspaceEl, sim, bus);
+    },
+  });
+
+  activeAuthorMode.enter(type);
+  window._authorMode = activeAuthorMode; // debug
+});
+
+// --- Tooltips for toolbar buttons ---
+// Uses fixed-position DOM elements appended to body (avoids stacking context issues)
+{
+  let tip = null;
+  for (const btn of document.querySelectorAll('[data-tooltip]')) {
+    btn.addEventListener('mouseenter', () => {
+      tip = document.createElement('div');
+      tip.className = 'btn-tooltip';
+      tip.textContent = btn.dataset.tooltip;
+      document.body.appendChild(tip);
+      const rect = btn.getBoundingClientRect();
+      const tipRect = tip.getBoundingClientRect();
+      tip.style.left = Math.min(rect.right - tipRect.width, window.innerWidth - tipRect.width - 4) + 'px';
+      tip.style.top = (rect.top - tipRect.height - 6) + 'px';
+    });
+    btn.addEventListener('mouseleave', () => {
+      if (tip) { tip.remove(); tip = null; }
+    });
+  }
+}
 
 // Initial time cursors
 workspace.drawTimeCursors(0);

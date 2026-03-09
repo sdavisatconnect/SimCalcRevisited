@@ -42,6 +42,7 @@ export class PositionGraph {
       const actorGroup = document.createElementNS(SVG_NS, 'g');
       actorGroup.setAttribute('class', 'actor-data');
       actorGroup.setAttribute('data-actor-id', actor.id);
+      const isReadOnly = actor.readOnly;
 
       const pts = actor.positionFn.points;
 
@@ -56,6 +57,10 @@ export class PositionGraph {
             const s1 = this.renderer.toScreen(pts[i + 1].t, pts[i + 1].v);
             const line = this.renderer.makeLine(s0.x, s0.y, s1.x, s1.y, 'function-line');
             line.setAttribute('stroke', actor.color);
+            if (isReadOnly) {
+              line.setAttribute('stroke-dasharray', '6 4');
+              line.setAttribute('opacity', '0.6');
+            }
             actorGroup.appendChild(line);
           } else {
             // Quadratic segment — sample points along the parabola
@@ -78,22 +83,28 @@ export class PositionGraph {
 
             const curve = this.renderer.makePolyline(screenPoints.join(' '), 'function-line');
             curve.setAttribute('stroke', actor.color);
+            if (isReadOnly) {
+              curve.setAttribute('stroke-dasharray', '6 4');
+              curve.setAttribute('opacity', '0.6');
+            }
             actorGroup.appendChild(curve);
           }
         }
       }
 
-      // Draw control points (even if just one — shows the origin dot)
-      pts.forEach((p, i) => {
-        const s = this.renderer.toScreen(p.t, p.v);
-        const circle = this.renderer.makeCircle(s.x, s.y, 6, 'control-point');
-        circle.setAttribute('fill', actor.color);
-        circle.setAttribute('stroke', '#fff');
-        circle.setAttribute('stroke-width', '2');
-        circle.setAttribute('data-actor-id', actor.id);
-        circle.setAttribute('data-point-index', i);
-        actorGroup.appendChild(circle);
-      });
+      // Draw control points — skip for read-only actors (no editing)
+      if (!isReadOnly) {
+        pts.forEach((p, i) => {
+          const s = this.renderer.toScreen(p.t, p.v);
+          const circle = this.renderer.makeCircle(s.x, s.y, 6, 'control-point');
+          circle.setAttribute('fill', actor.color);
+          circle.setAttribute('stroke', '#fff');
+          circle.setAttribute('stroke-width', '2');
+          circle.setAttribute('data-actor-id', actor.id);
+          circle.setAttribute('data-point-index', i);
+          actorGroup.appendChild(circle);
+        });
+      }
 
       group.appendChild(actorGroup);
     }

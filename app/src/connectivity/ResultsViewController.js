@@ -1,3 +1,4 @@
+import { Panel } from '../workspace/Panel.js';
 import { ResultsManager } from './ResultsManager.js';
 import { OverlaidGraphView } from './OverlaidGraphView.js';
 import { TiledGraphView } from './TiledGraphView.js';
@@ -7,6 +8,10 @@ import { VisibilityPanel } from './VisibilityPanel.js';
  * Coordinates the teacher's results display mode.
  * Creates world panel with all student actors, overlaid graph, tiled graph,
  * and visibility controls. Handles linked visibility across all views.
+ *
+ * Teacher's sim.actors are NOT modified — the actor palette continues to show
+ * the original teacher actors. Student visibility is controlled via the sidebar.
+ * Overlaid and tiled graph panels are full Panel instances (draggable/resizable).
  */
 export class ResultsViewController {
   constructor(bus, workspace, simulation, createPanelFn, interactionMgr) {
@@ -18,6 +23,8 @@ export class ResultsViewController {
     this.students = [];
     this.allStudentActors = [];
     this.worldPanel = null;
+    this.overlaidPanel = null;
+    this.tiledPanel = null;
     this.overlaidView = null;
     this.tiledView = null;
     this.visibilityPanel = null;
@@ -27,6 +34,7 @@ export class ResultsViewController {
   /**
    * Enter results display mode.
    * Clears existing workspace and builds the results layout.
+   * Does NOT modify sim.actors — teacher palette stays clean.
    * @param {object} submissions - raw Firebase submissions
    */
   enterResultsMode(submissions) {
@@ -34,7 +42,7 @@ export class ResultsViewController {
     const { students } = resultsMgr.parseSubmissions(submissions);
     this.students = students;
 
-    // Collect all student actors
+    // Collect all student actors (kept separate from sim.actors)
     this.allStudentActors = [];
     for (const student of students) {
       for (const actor of student.actors) {
@@ -49,14 +57,11 @@ export class ResultsViewController {
       this.workspace.removePanel(panel);
     }
 
-    // Clear existing actors and add student actors
-    this.sim.actors = [];
-    for (const { actor } of this.allStudentActors) {
-      this.sim.addActor(actor);
-    }
-    this.bus.emit('actors:changed');
+    // Remove any lingering overlays (world selector, etc.)
+    const overlay = this.workspace.container.querySelector('.world-selector-overlay');
+    if (overlay) overlay.remove();
 
-    // Build results layout
+    // Build results layout (sim.actors unchanged — teacher actors stay in palette)
     this._buildLayout();
 
     // Listen for visibility changes
@@ -70,30 +75,30 @@ export class ResultsViewController {
     const wsW = wsRect.width;
     const wsH = wsRect.height;
 
-    // Layout: world panel across top, overlaid graph left, tiled graph right
-    // Visibility panel in the sidebar
-
     // 1. World panel (top, full width)
     const worldH = Math.floor(wsH * 0.3);
     this.worldPanel = this.createPanel('world', {
       x: 10, y: 10,
       width: wsW - 20,
       height: worldH,
-      actorIds: this.allStudentActors.map(a => a.actor.id),
+      actorIds: [], // don't link via Panel's actor dropdown
     });
+    // Set world component actors directly (bypasses actor dropdown UI)
+    const allActors = this.allStudentActors.map(a => a.actor);
+    this.worldPanel.component.setLinkedActors(allActors);
+    // Hide actor selector — students are controlled via sidebar visibility panel
+    this.worldPanel.actorSelectorEl.style.display = 'none';
 
-    // 2. Results panels container (below world)
+    // 2. Overlaid graph panel (real Panel — draggable & resizable)
     const graphTop = worldH + 20;
     const graphH = wsH - graphTop - 10;
     const halfW = Math.floor((wsW - 30) / 2);
-
-    // Create overlaid graph panel (position)
     this._createOverlaidPanel(10, graphTop, halfW, graphH, 'position');
 
-    // Create tiled graph panel (position)
+    // 3. Tiled graph panel (real Panel — draggable & resizable)
     this._createTiledPanel(halfW + 20, graphTop, halfW, graphH, 'position');
 
-    // 3. Visibility panel in the sidebar
+    // 4. Visibility panel in the sidebar
     const sidebar = document.getElementById('tool-sidebar');
     if (sidebar) {
       sidebar.innerHTML = '';
@@ -105,44 +110,57 @@ export class ResultsViewController {
   }
 
   _createOverlaidPanel(x, y, w, h, graphType) {
-    // Create a lightweight panel-like div (not a full Panel, to avoid interaction manager complexity)
-    const el = document.createElement('div');
-    el.className = 'results-panel overlaid-panel';
-    el.style.cssText = `position: absolute; left: ${x}px; top: ${y}px; width: ${w}px; height: ${h}px;`;
-
-    const titleBar = document.createElement('div');
-    titleBar.className = 'results-panel-title';
     const typeName = graphType === 'position' ? 'Position (P/T)' : 'Velocity (V/T)';
-    titleBar.textContent = `All Students — ${typeName} (Overlaid)`;
-    el.appendChild(titleBar);
 
-    const content = document.createElement('div');
-    content.className = 'results-panel-content';
-    el.appendChild(content);
+    const panel = new Panel({
+      id: 'results-overlaid-' + Date.now(),
+      title: `Overlaid — ${typeName}`,
+      type: 'results-overlaid',
+      x, y, width: w, height: h,
+      onClose: null,
+      onFocus: (p) => this.workspace.bringToFront(p),
+      bus: this.bus,
+      simulation: this.sim,
+    });
 
-    this.workspace.container.appendChild(el);
+    // Hide actor selector and close button — not needed for results panels
+    panel.actorSelectorEl.style.display = 'none';
+    panel.closeBtn.style.display = 'none';
 
-    this.overlaidView = new OverlaidGraphView(content, this.sim, this.students, graphType);
+    // Create the overlaid graph view component
+    this.overlaidView = new OverlaidGraphView(panel.contentEl, this.sim, this.students, graphType);
+    panel.component = this.overlaidView;
+
+    // Add to workspace (triggers refresh after DOM insertion)
+    this.workspace.addPanel(panel);
+    this.overlaidPanel = panel;
   }
 
   _createTiledPanel(x, y, w, h, graphType) {
-    const el = document.createElement('div');
-    el.className = 'results-panel tiled-panel';
-    el.style.cssText = `position: absolute; left: ${x}px; top: ${y}px; width: ${w}px; height: ${h}px;`;
-
-    const titleBar = document.createElement('div');
-    titleBar.className = 'results-panel-title';
     const typeName = graphType === 'position' ? 'Position (P/T)' : 'Velocity (V/T)';
-    titleBar.textContent = `All Students — ${typeName} (Tiled)`;
-    el.appendChild(titleBar);
 
-    const content = document.createElement('div');
-    content.className = 'results-panel-content';
-    el.appendChild(content);
+    const panel = new Panel({
+      id: 'results-tiled-' + Date.now(),
+      title: `All Students — ${typeName}`,
+      type: 'results-tiled',
+      x, y, width: w, height: h,
+      onClose: null,
+      onFocus: (p) => this.workspace.bringToFront(p),
+      bus: this.bus,
+      simulation: this.sim,
+    });
 
-    this.workspace.container.appendChild(el);
+    // Hide actor selector and close button — not needed for results panels
+    panel.actorSelectorEl.style.display = 'none';
+    panel.closeBtn.style.display = 'none';
 
-    this.tiledView = new TiledGraphView(content, this.sim, this.students, graphType);
+    // Create the tiled graph view component
+    this.tiledView = new TiledGraphView(panel.contentEl, this.sim, this.students, graphType);
+    panel.component = this.tiledView;
+
+    // Add to workspace (triggers refresh after DOM insertion)
+    this.workspace.addPanel(panel);
+    this.tiledPanel = panel;
   }
 
   _onVisibilityChanged(visibleIds) {
@@ -172,9 +190,17 @@ export class ResultsViewController {
       this.bus.off('results:visibility-changed', this._visibilityHandler);
     }
 
-    // Clean up results panels
-    const resultsPanels = this.workspace.container.querySelectorAll('.results-panel');
-    for (const el of resultsPanels) el.remove();
+    // Remove all results panels from workspace (proper Panel cleanup)
+    const panelsToRemove = [this.worldPanel, this.overlaidPanel, this.tiledPanel].filter(Boolean);
+    for (const panel of panelsToRemove) {
+      this.interactionMgr.unregisterGraph(panel.id);
+      this.workspace.removePanel(panel);
+    }
+    this.worldPanel = null;
+    this.overlaidPanel = null;
+    this.tiledPanel = null;
+    this.overlaidView = null;
+    this.tiledView = null;
 
     // Restore sidebar
     const sidebar = document.getElementById('tool-sidebar');

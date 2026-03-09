@@ -42,6 +42,7 @@ export class VelocityGraph {
       const actorGroup = document.createElementNS(SVG_NS, 'g');
       actorGroup.setAttribute('class', 'actor-data');
       actorGroup.setAttribute('data-actor-id', actor.id);
+      const isReadOnly = actor.readOnly;
 
       const pts = actor.positionFn.points;
       const numSegs = pts.length - 1;
@@ -61,6 +62,7 @@ export class VelocityGraph {
         const areaPath = `M ${zeroStart.x},${zeroStart.y} L ${screenStart.x},${screenStart.y} L ${screenEnd.x},${screenEnd.y} L ${zeroEnd.x},${zeroEnd.y} Z`;
         const area = this.renderer.makePath(areaPath, 'velocity-area');
         area.setAttribute('fill', actor.color);
+        if (isReadOnly) area.setAttribute('opacity', '0.08');
         actorGroup.appendChild(area);
 
         // Velocity line (horizontal for constant, sloped for accelerating)
@@ -68,6 +70,10 @@ export class VelocityGraph {
           screenStart.x, screenStart.y, screenEnd.x, screenEnd.y, 'velocity-line'
         );
         line.setAttribute('stroke', actor.color);
+        if (isReadOnly) {
+          line.setAttribute('stroke-dasharray', '6 4');
+          line.setAttribute('opacity', '0.6');
+        }
         actorGroup.appendChild(line);
 
         // Vertical connector to next segment (at velocity discontinuities)
@@ -82,33 +88,37 @@ export class VelocityGraph {
             );
             connector.setAttribute('stroke', actor.color);
             connector.setAttribute('stroke-width', '1.5');
-            connector.setAttribute('opacity', '0.5');
+            connector.setAttribute('opacity', isReadOnly ? '0.3' : '0.5');
+            if (isReadOnly) connector.setAttribute('stroke-dasharray', '4 3');
             actorGroup.appendChild(connector);
           }
         }
 
-        // Drag handle at midpoint (average velocity) — for vertical value dragging
-        const midT = (tStart + tEnd) / 2;
-        const midScreen = this.renderer.toScreen(midT, vAvg);
-        const handle = this.renderer.makeCircle(midScreen.x, midScreen.y, 6, 'control-point');
-        handle.setAttribute('fill', actor.color);
-        handle.setAttribute('stroke', '#fff');
-        handle.setAttribute('stroke-width', '2');
-        handle.setAttribute('data-actor-id', actor.id);
-        handle.setAttribute('data-segment-index', i);
-        handle.setAttribute('data-graph-type', 'velocity');
-        actorGroup.appendChild(handle);
+        // Drag handles — skip for read-only actors
+        if (!isReadOnly) {
+          // Drag handle at midpoint (average velocity) — for vertical value dragging
+          const midT = (tStart + tEnd) / 2;
+          const midScreen = this.renderer.toScreen(midT, vAvg);
+          const handle = this.renderer.makeCircle(midScreen.x, midScreen.y, 6, 'control-point');
+          handle.setAttribute('fill', actor.color);
+          handle.setAttribute('stroke', '#fff');
+          handle.setAttribute('stroke-width', '2');
+          handle.setAttribute('data-actor-id', actor.id);
+          handle.setAttribute('data-segment-index', i);
+          handle.setAttribute('data-graph-type', 'velocity');
+          actorGroup.appendChild(handle);
 
-        // Right-edge endpoint handle (duration — horizontal drag)
-        if (i < numSegs - 1 || numSegs >= 1) {
-          const endpoint = this.renderer.makeCircle(screenEnd.x, screenEnd.y, 5, 'control-point vel-endpoint');
-          endpoint.setAttribute('fill', '#fff');
-          endpoint.setAttribute('stroke', actor.color);
-          endpoint.setAttribute('stroke-width', '2');
-          endpoint.setAttribute('data-actor-id', actor.id);
-          endpoint.setAttribute('data-segment-index', i);
-          endpoint.setAttribute('data-drag-mode', 'endpoint');
-          actorGroup.appendChild(endpoint);
+          // Right-edge endpoint handle (duration — horizontal drag)
+          if (i < numSegs - 1 || numSegs >= 1) {
+            const endpoint = this.renderer.makeCircle(screenEnd.x, screenEnd.y, 5, 'control-point vel-endpoint');
+            endpoint.setAttribute('fill', '#fff');
+            endpoint.setAttribute('stroke', actor.color);
+            endpoint.setAttribute('stroke-width', '2');
+            endpoint.setAttribute('data-actor-id', actor.id);
+            endpoint.setAttribute('data-segment-index', i);
+            endpoint.setAttribute('data-drag-mode', 'endpoint');
+            actorGroup.appendChild(endpoint);
+          }
         }
       }
 

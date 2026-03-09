@@ -196,6 +196,11 @@ export class TiledGraphView {
     }
   }
 
+  /** Called by Panel after resize to re-render the grid */
+  refresh() {
+    this.render();
+  }
+
   destroy() {
     if (this._resizeObserver) this._resizeObserver.disconnect();
     this.el.remove();

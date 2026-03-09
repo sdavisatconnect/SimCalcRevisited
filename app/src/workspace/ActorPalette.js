@@ -8,10 +8,18 @@ let actorCounter = 0;
  * Actor palette: shows actor chips (draggable), add/delete actors, edit name/color.
  */
 export class ActorPalette {
-  constructor(containerEl, simulation, bus) {
+  /**
+   * @param {HTMLElement} containerEl
+   * @param {Simulation} simulation
+   * @param {EventBus} bus
+   * @param {object} [opts]
+   * @param {function} [opts.renderBadge] - (actor) => string|null — returns a badge label for the chip
+   */
+  constructor(containerEl, simulation, bus, opts = {}) {
     this.container = containerEl;
     this.sim = simulation;
     this.bus = bus;
+    this._renderBadge = opts.renderBadge || null;
 
     this._render();
 
@@ -52,6 +60,17 @@ export class ActorPalette {
       // Prevent drag when editing name
       nameSpan.addEventListener('mousedown', (e) => e.stopPropagation());
       chip.appendChild(nameSpan);
+
+      // Badge (e.g. "Ref" or "Student" in author mode)
+      if (this._renderBadge) {
+        const badgeText = this._renderBadge(actor);
+        if (badgeText) {
+          const badge = document.createElement('span');
+          badge.className = 'actor-chip-badge';
+          badge.textContent = badgeText;
+          chip.appendChild(badge);
+        }
+      }
 
       // Color cycle on right-click
       chip.addEventListener('contextmenu', (e) => {

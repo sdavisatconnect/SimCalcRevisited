@@ -1,11 +1,13 @@
 import { PiecewiseLinearFunction } from './PiecewiseLinearFunction.js';
 
 export class Actor {
-  constructor({ id, name, color, positionFunction }) {
+  constructor({ id, name, color, positionFunction, readOnly = false }) {
     this.id = id;
     this.name = name;
     this.color = color;
     this.positionFn = positionFunction;
+    /** When true, graph components render dashed lines and skip drag handles */
+    this.readOnly = readOnly;
   }
 
   getPositionAt(t) {

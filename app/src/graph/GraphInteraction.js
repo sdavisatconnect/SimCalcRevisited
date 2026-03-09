@@ -133,7 +133,7 @@ export class GraphInteractionManager {
 
     // Find the target actor — use the first linked actor (or the active one)
     const actor = panel.getActiveActor ? panel.getActiveActor() : panel.linkedActors[0];
-    if (!actor) return;
+    if (!actor || actor.readOnly) return;
 
     // Get the drop position in data coordinates
     const renderer = graphEntry.component.graphRenderer;
@@ -236,7 +236,7 @@ export class GraphInteractionManager {
 
     const actorId = target.getAttribute('data-actor-id');
     const actor = this.sim.getActor(actorId);
-    if (!actor) return;
+    if (!actor || actor.readOnly) return;
 
     if (graphEntry.type === 'position') {
       const pointIndex = parseInt(target.getAttribute('data-point-index'));
@@ -283,7 +283,7 @@ export class GraphInteractionManager {
 
     const actorId = target.getAttribute('data-actor-id');
     const actor = this.sim.getActor(actorId);
-    if (!actor) return;
+    if (!actor || actor.readOnly) return;
 
     if (graphEntry.type === 'position') {
       const pointIndex = parseInt(target.getAttribute('data-point-index'));

@@ -67,6 +67,50 @@ export class WorldSelector {
     divider.textContent = 'or';
     card.appendChild(divider);
 
+    // Author & Join row
+    const actionRow = document.createElement('div');
+    actionRow.className = 'world-selector-action-row';
+
+    // Author a Challenge button — reveals world type picker
+    const authorBtn = document.createElement('button');
+    authorBtn.className = 'world-option-author';
+    authorBtn.innerHTML = '\u270F\uFE0F Author a Challenge';
+    actionRow.appendChild(authorBtn);
+
+    // Hidden world type picker for authoring
+    const authorPicker = document.createElement('div');
+    authorPicker.className = 'author-world-picker';
+    authorPicker.style.display = 'none';
+
+    const pickerLabel = document.createElement('span');
+    pickerLabel.className = 'author-picker-label';
+    pickerLabel.textContent = 'Choose world type:';
+    authorPicker.appendChild(pickerLabel);
+
+    const hBtn = document.createElement('button');
+    hBtn.className = 'author-picker-btn';
+    hBtn.textContent = '\uD83D\uDEB6 Horizontal';
+    hBtn.addEventListener('click', () => {
+      this.bus.emit('challenge:author-start', { type: 'horizontal' });
+      this.dismiss();
+    });
+    authorPicker.appendChild(hBtn);
+
+    const vBtn = document.createElement('button');
+    vBtn.className = 'author-picker-btn';
+    vBtn.textContent = '\uD83D\uDED7 Vertical';
+    vBtn.addEventListener('click', () => {
+      this.bus.emit('challenge:author-start', { type: 'vertical' });
+      this.dismiss();
+    });
+    authorPicker.appendChild(vBtn);
+
+    authorBtn.addEventListener('click', () => {
+      authorPicker.style.display = authorPicker.style.display === 'none' ? 'flex' : 'none';
+    });
+
+    actionRow.appendChild(authorPicker);
+
     // Join a Challenge button
     const joinBtn = document.createElement('button');
     joinBtn.className = 'world-option-join';
@@ -75,7 +119,9 @@ export class WorldSelector {
       this.bus.emit('challenge:join-request');
       this.dismiss();
     });
-    card.appendChild(joinBtn);
+    actionRow.appendChild(joinBtn);
+
+    card.appendChild(actionRow);
 
     this.el.appendChild(card);
     this.parentEl.appendChild(this.el);

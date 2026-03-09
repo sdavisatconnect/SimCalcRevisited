@@ -44,6 +44,7 @@ export class AccelerationGraph {
       const actorGroup = document.createElementNS(SVG_NS, 'g');
       actorGroup.setAttribute('class', 'actor-data');
       actorGroup.setAttribute('data-actor-id', actor.id);
+      const isReadOnly = actor.readOnly;
 
       const pts = actor.positionFn.points;
       const numSegs = pts.length - 1;
@@ -63,7 +64,7 @@ export class AccelerationGraph {
         const areaPath = `M ${zeroStart.x},${zeroStart.y} L ${screenStart.x},${screenStart.y} L ${screenEnd.x},${screenEnd.y} L ${zeroEnd.x},${zeroEnd.y} Z`;
         const area = this.renderer.makePath(areaPath, 'accel-area');
         area.setAttribute('fill', actor.color);
-        area.setAttribute('opacity', '0.25');
+        area.setAttribute('opacity', isReadOnly ? '0.1' : '0.25');
         actorGroup.appendChild(area);
 
         // Horizontal acceleration line
@@ -72,19 +73,25 @@ export class AccelerationGraph {
         );
         line.setAttribute('stroke', actor.color);
         line.setAttribute('stroke-width', '2.5');
+        if (isReadOnly) {
+          line.setAttribute('stroke-dasharray', '6 4');
+          line.setAttribute('opacity', '0.6');
+        }
         actorGroup.appendChild(line);
 
-        // Drag handle at midpoint — for vertical acceleration dragging
-        const midT = (tStart + tEnd) / 2;
-        const midScreen = this.renderer.toScreen(midT, accel);
-        const handle = this.renderer.makeCircle(midScreen.x, midScreen.y, 6, 'control-point accel-handle');
-        handle.setAttribute('fill', actor.color);
-        handle.setAttribute('stroke', '#fff');
-        handle.setAttribute('stroke-width', '2');
-        handle.setAttribute('data-actor-id', actor.id);
-        handle.setAttribute('data-segment-index', i);
-        handle.setAttribute('data-graph-type', 'acceleration');
-        actorGroup.appendChild(handle);
+        // Drag handle at midpoint — skip for read-only actors
+        if (!isReadOnly) {
+          const midT = (tStart + tEnd) / 2;
+          const midScreen = this.renderer.toScreen(midT, accel);
+          const handle = this.renderer.makeCircle(midScreen.x, midScreen.y, 6, 'control-point accel-handle');
+          handle.setAttribute('fill', actor.color);
+          handle.setAttribute('stroke', '#fff');
+          handle.setAttribute('stroke-width', '2');
+          handle.setAttribute('data-actor-id', actor.id);
+          handle.setAttribute('data-segment-index', i);
+          handle.setAttribute('data-graph-type', 'acceleration');
+          actorGroup.appendChild(handle);
+        }
       }
 
       // Draw impulse arrows at velocity discontinuities
