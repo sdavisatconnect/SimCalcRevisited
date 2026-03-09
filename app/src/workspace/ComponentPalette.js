@@ -1,3 +1,5 @@
+import { FeedbackForm } from '../feedback/FeedbackForm.js';
+
 /**
  * Actor palette bar (top of screen). Component creation buttons have moved to the right sidebar.
  * This now only contains the actor palette area and the About button (far right).
@@ -131,6 +133,10 @@ export class ComponentPalette {
     `;
 
     overlay.appendChild(card);
+
+    // Append feedback form to the howto body
+    const howtoBody = card.querySelector('.howto-body');
+    new FeedbackForm(howtoBody);
 
     const closeBtn = card.querySelector('.about-close');
     const close = () => {
