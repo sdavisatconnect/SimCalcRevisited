@@ -24,6 +24,10 @@ import { StudentSubmitter } from './src/connectivity/StudentSubmitter.js';
 import { ResultsViewController } from './src/connectivity/ResultsViewController.js';
 import { PracticeDataGenerator } from './src/connectivity/PracticeDataGenerator.js';
 import { ChallengeAuthorMode } from './src/authoring/ChallengeAuthorMode.js';
+import { SessionStore } from './src/connectivity/SessionStore.js';
+import { RoomCodeBar } from './src/connectivity/RoomCodeBar.js';
+import { SessionHistoryDialog } from './src/connectivity/SessionHistoryDialog.js';
+import { StudentResultsOverlay } from './src/connectivity/StudentResultsOverlay.js';
 import { showImportDialog } from './src/io/VernierImport.js';
 
 // --- Setup ---
@@ -153,6 +157,12 @@ function resetToBlank() {
   practiceCount = 0;
   const collectBtn = document.getElementById('btn-collect-again');
   if (collectBtn) collectBtn.style.display = 'none';
+
+  // Remove room code bar if showing
+  if (activeRoomCodeBar) {
+    activeRoomCodeBar.remove();
+    activeRoomCodeBar = null;
+  }
 
   // Show world selector overlay again
   new WorldSelector(workspaceEl, sim, bus);
@@ -346,8 +356,11 @@ document.getElementById('btn-broadcast').addEventListener('click', async () => {
 
   try {
     const challengeData = ChallengeSerializer.serializeChallenge(sim, workspace, settings);
-    const roomCode = await roomManager.createRoom(challengeData, settings);
+    const ownerToken = SessionStore.generateOwnerToken();
+    const title = settings.title || 'Broadcast';
+    const roomCode = await roomManager.createRoom(challengeData, settings, { ownerToken, title });
     activeRoomCode = roomCode;
+    SessionStore.addSession({ roomCode, ownerToken, title, createdAt: Date.now() });
 
     const overlay = new RoomCodeOverlay();
     overlay.show(
@@ -422,6 +435,7 @@ bus.on('challenge:join-request', async () => {
 
   // Wire up the submit button
   const submitBtn = activeChallengeMode.getSubmitButton();
+  let viewResultsBtn = null;
   if (submitBtn) {
     submitBtn.addEventListener('click', async () => {
       submitBtn.disabled = true;
@@ -435,6 +449,18 @@ bus.on('challenge:join-request', async () => {
           submitBtn.textContent = 'Resubmit';
           submitBtn.classList.remove('submit-success');
         }, 2000);
+
+        // Add "View Results" button after first successful submit
+        if (!viewResultsBtn && submitBtn.parentNode) {
+          viewResultsBtn = document.createElement('button');
+          viewResultsBtn.className = 'challenge-btn challenge-view-results';
+          viewResultsBtn.textContent = 'View Results';
+          viewResultsBtn.addEventListener('click', () => {
+            const overlay = new StudentResultsOverlay(roomManager, roomCode, sim);
+            overlay.show();
+          });
+          submitBtn.parentNode.insertBefore(viewResultsBtn, submitBtn.nextSibling);
+        }
       } catch (err) {
         console.error('Submit failed:', err);
         submitBtn.disabled = false;
@@ -454,6 +480,7 @@ bus.on('challenge:join-request', async () => {
 let activeResultsCtrl = null;
 let activeResultsRoomCode = null;  // Firebase room code, or null
 let practiceCount = 0;             // practice mode student count (0 = not practice)
+let activeRoomCodeBar = null;      // persistent room code banner during results
 
 const collectAgainBtn = document.getElementById('btn-collect-again');
 
@@ -474,7 +501,32 @@ bus.on('challenge:show-results', ({ submissions, challengeData, roomCode }) => {
   } else if (roomCode) {
     activeResultsRoomCode = roomCode;
     practiceCount = 0;
-    collectAgainBtn.style.display = '';
+    // Hide the old collect-again button; the RoomCodeBar has its own
+    collectAgainBtn.style.display = 'none';
+
+    // Create persistent room code bar
+    if (activeRoomCodeBar) activeRoomCodeBar.remove();
+    activeRoomCodeBar = new RoomCodeBar(workspaceEl, roomCode, {
+      onCollectAgain: async () => {
+        const subs = await roomManager.getSubmissions(roomCode);
+        if (!subs) { alert('No submissions found.'); return; }
+        if (activeResultsCtrl) activeResultsCtrl.exitResultsMode();
+        activeResultsCtrl = new ResultsViewController(bus, workspace, sim, createPanel, interactionMgr);
+        activeResultsCtrl.enterResultsMode(subs);
+      },
+      onCloseRoom: async () => {
+        await roomManager.closeRoom(roomCode);
+      },
+    });
+
+    // Poll for submission count every 15 seconds
+    activeRoomCodeBar.startPolling(
+      () => roomManager.getSubmissionCount(roomCode),
+      15000
+    );
+
+    // Update session last-accessed timestamp
+    SessionStore.updateLastAccessed(roomCode);
   }
 });
 
@@ -525,8 +577,11 @@ bus.on('challenge:author-start', ({ type }) => {
     onBroadcast: async (challengeData) => {
       // Use existing broadcast flow
       try {
-        const roomCode = await roomManager.createRoom(challengeData, {});
+        const ownerToken = SessionStore.generateOwnerToken();
+        const title = challengeData.meta?.title || 'Authored Challenge';
+        const roomCode = await roomManager.createRoom(challengeData, {}, { ownerToken, title });
         activeRoomCode = roomCode;
+        SessionStore.addSession({ roomCode, ownerToken, title, createdAt: Date.now() });
 
         const overlay = new RoomCodeOverlay();
         overlay.show(
@@ -593,6 +648,47 @@ bus.on('challenge:author-start', ({ type }) => {
   window._authorMode = activeAuthorMode; // debug
 });
 
+// --- Session Re-open ---
+bus.on('session:reopen-request', () => {
+  const dialog = new SessionHistoryDialog(roomManager, ({ roomCode, challengeData, submissions, settings }) => {
+    // Reconstruct workspace from challenge data
+    TemplateIO.reconstruct(challengeData, sim, workspace, panelFactory, interactionMgr, bus, createPanel);
+    speedSlider.value = sim.playbackSpeed;
+    speedValue.textContent = sim.playbackSpeed + '\u00D7';
+
+    // Set target segments if any
+    sim.targetSegments = (challengeData.targetSegments || []).map(s => ({ ...s }));
+
+    // Enter results mode
+    activeResultsCtrl = new ResultsViewController(bus, workspace, sim, createPanel, interactionMgr);
+    activeResultsCtrl.enterResultsMode(submissions);
+
+    // Show room code bar
+    activeResultsRoomCode = roomCode;
+    if (activeRoomCodeBar) activeRoomCodeBar.remove();
+    activeRoomCodeBar = new RoomCodeBar(workspaceEl, roomCode, {
+      onCollectAgain: async () => {
+        const subs = await roomManager.getSubmissions(roomCode);
+        if (!subs) { alert('No submissions found.'); return; }
+        if (activeResultsCtrl) activeResultsCtrl.exitResultsMode();
+        activeResultsCtrl = new ResultsViewController(bus, workspace, sim, createPanel, interactionMgr);
+        activeResultsCtrl.enterResultsMode(subs);
+      },
+      onCloseRoom: async () => {
+        await roomManager.closeRoom(roomCode);
+      },
+    });
+    activeRoomCodeBar.startPolling(
+      () => roomManager.getSubmissionCount(roomCode),
+      15000
+    );
+
+    // Hide Collect Again since the bar handles it
+    collectAgainBtn.style.display = 'none';
+  });
+  dialog.show();
+});
+
 // --- Vernier CSV Import ---
 bus.on('import:request', () => {
   if (!sim.worldType) return; // need a world set up first
@@ -622,6 +718,78 @@ bus.on('import:request', () => {
 
 // Initial time cursors
 workspace.drawTimeCursors(0);
+
+// --- URL-based join: ?join=XXXX ---
+{
+  const params = new URLSearchParams(window.location.search);
+  const joinCode = params.get('join');
+  if (joinCode && /^\d{4,6}$/.test(joinCode)) {
+    // Clean the URL without reloading
+    const cleanUrl = window.location.origin + window.location.pathname;
+    history.replaceState(null, '', cleanUrl);
+
+    // Dismiss world selector if present
+    const wsOverlay = workspaceEl.querySelector('.world-selector-overlay');
+    if (wsOverlay) wsOverlay.remove();
+
+    // Open join dialog with pre-filled code
+    const joinDialog = new JoinDialog();
+    joinDialog.showWithCode(joinCode).then(result => {
+      if (!result) {
+        // Cancelled — show world selector again
+        new WorldSelector(workspaceEl, sim, bus);
+        return;
+      }
+      // Emit the same join event data that the normal flow uses
+      const { roomCode, initials, challengeData, settings } = result;
+      sim.targetSegments = (challengeData.targetSegments || []).map(s => ({ ...s }));
+      TemplateIO.reconstruct(challengeData, sim, workspace, panelFactory, interactionMgr, bus, createPanel);
+      speedSlider.value = sim.playbackSpeed;
+      speedValue.textContent = sim.playbackSpeed + '\u00D7';
+      activeChallengeMode = new ChallengeMode(bus, workspace, sim);
+      activeChallengeMode.activate(challengeData, settings, initials, roomCode);
+      const studentId = `${initials}-${Date.now()}`;
+      activeSubmitter = new StudentSubmitter(firebaseClient, roomCode, studentId, initials);
+      const submitBtn = activeChallengeMode.getSubmitButton();
+      let urlViewResultsBtn = null;
+      if (submitBtn) {
+        submitBtn.addEventListener('click', async () => {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Submitting...';
+          try {
+            await activeSubmitter.submit(sim);
+            submitBtn.textContent = activeSubmitter.version > 1 ? 'Resubmitted \u2713' : 'Submitted \u2713';
+            submitBtn.classList.add('submit-success');
+            setTimeout(() => {
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Resubmit';
+              submitBtn.classList.remove('submit-success');
+            }, 2000);
+            // Add "View Results" button after first successful submit
+            if (!urlViewResultsBtn && submitBtn.parentNode) {
+              urlViewResultsBtn = document.createElement('button');
+              urlViewResultsBtn.className = 'challenge-btn challenge-view-results';
+              urlViewResultsBtn.textContent = 'View Results';
+              urlViewResultsBtn.addEventListener('click', () => {
+                const overlay = new StudentResultsOverlay(roomManager, roomCode, sim);
+                overlay.show();
+              });
+              submitBtn.parentNode.insertBefore(urlViewResultsBtn, submitBtn.nextSibling);
+            }
+          } catch (err) {
+            console.error('Submit failed:', err);
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit (retry)';
+            submitBtn.classList.add('submit-error');
+            setTimeout(() => submitBtn.classList.remove('submit-error'), 2000);
+          }
+        });
+      }
+      const broadcastBtn = document.getElementById('btn-broadcast');
+      if (broadcastBtn) broadcastBtn.style.display = 'none';
+    });
+  }
+}
 
 // Debug: expose for console testing
 window._sim = sim;

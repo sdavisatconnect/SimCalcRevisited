@@ -2622,3 +2622,324 @@ body {
   background: #555;
   cursor: not-allowed;
 }
+
+/* ===== Room Code Bar (persistent banner during results) ===== */
+.roomcode-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #1a1a2e;
+  border-bottom: 2px solid #3498db;
+  padding: 6px 16px;
+  height: 36px;
+  box-sizing: border-box;
+  z-index: 500;
+  position: relative;
+  flex-shrink: 0;
+  font-size: 13px;
+  color: #ccc;
+}
+.roomcode-bar-closed {
+  border-bottom-color: #666;
+  opacity: 0.7;
+}
+.roomcode-bar-label {
+  color: #888;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.roomcode-bar-digit {
+  display: inline-block;
+  background: #2a2a3e;
+  color: #3498db;
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  font-size: 15px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin: 0 1px;
+}
+.roomcode-bar-code {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.roomcode-bar-count {
+  color: #8ab4f8;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.roomcode-bar-sep {
+  color: #444;
+  margin: 0 2px;
+}
+.roomcode-bar-btn {
+  background: #2a2a3e;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #ccc;
+  font-size: 11px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.roomcode-bar-btn:hover {
+  background: #3a3a4e;
+  border-color: #666;
+}
+.roomcode-bar-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.roomcode-bar-btn-close {
+  color: #e74c3c;
+  border-color: #e74c3c33;
+}
+.roomcode-bar-btn-close:hover {
+  background: #3a2a2e;
+  border-color: #e74c3c66;
+}
+
+/* ===== Copy Link Button (shared between bar and overlay) ===== */
+.roomcode-copy-btn {
+  background: #2a2a3e;
+  border: 1px solid #3498db44;
+  border-radius: 4px;
+  color: #3498db;
+  font-size: 12px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.roomcode-copy-btn:hover {
+  background: #2a3a4e;
+  border-color: #3498db88;
+}
+
+/* Copy Link in the RoomCodeOverlay (centered below counter) */
+.roomcode-card .roomcode-copy-btn {
+  display: block;
+  margin: 8px auto 16px;
+  font-size: 13px;
+  padding: 6px 20px;
+}
+
+/* ===== Prefilled Join Code ===== */
+.join-dialog-code-input.prefilled {
+  background: #1a2a3e;
+  color: #3498db;
+  font-weight: 700;
+  border-color: #3498db44;
+  cursor: default;
+}
+
+/* ===== Session History Dialog ===== */
+.session-history-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.session-history-overlay.visible {
+  opacity: 1;
+}
+.session-history-card {
+  background: #1e1e2e;
+  border: 1px solid #444;
+  border-radius: 12px;
+  padding: 24px 32px;
+  color: #eee;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  min-width: 420px;
+  max-width: 600px;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+.session-history-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 16px;
+  color: #eee;
+}
+.session-history-list {
+  overflow-y: auto;
+  flex: 1;
+}
+.session-history-empty {
+  color: #888;
+  font-size: 13px;
+  text-align: center;
+  padding: 24px 0;
+}
+
+/* Session Row */
+.session-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #333;
+  transition: background 0.15s;
+}
+.session-row:hover {
+  background: #2a2a3e;
+}
+.session-row:last-child {
+  border-bottom: none;
+}
+.session-row-code {
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  color: #3498db;
+  font-size: 15px;
+  min-width: 55px;
+}
+.session-row-title {
+  flex: 1;
+  color: #ccc;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.session-row-time {
+  color: #777;
+  font-size: 11px;
+  white-space: nowrap;
+  min-width: 50px;
+  text-align: right;
+}
+.session-row-count {
+  color: #8ab4f8;
+  font-size: 11px;
+  white-space: nowrap;
+  min-width: 40px;
+  text-align: right;
+}
+.session-row-actions {
+  display: flex;
+  gap: 6px;
+}
+.session-row-btn {
+  background: #2a2a3e;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #ccc;
+  font-size: 11px;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.session-row-btn:hover {
+  background: #3a3a4e;
+}
+.session-row-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.session-row-btn-reopen {
+  color: #2ecc71;
+  border-color: #2ecc7133;
+}
+.session-row-btn-reopen:hover {
+  background: #2a3a2e;
+  border-color: #2ecc7166;
+}
+.session-row-btn-remove {
+  color: #e74c3c;
+  border-color: #e74c3c33;
+}
+.session-row-btn-remove:hover {
+  background: #3a2a2e;
+  border-color: #e74c3c66;
+}
+
+/* ===== Student Results Overlay ===== */
+.student-results-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.student-results-overlay.visible {
+  opacity: 1;
+}
+.student-results-card {
+  background: #1e1e2e;
+  border: 1px solid #444;
+  border-radius: 12px;
+  padding: 24px 32px;
+  color: #eee;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  width: 80vw;
+  max-width: 900px;
+  height: 70vh;
+  display: flex;
+  flex-direction: column;
+}
+.student-results-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.student-results-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  color: #eee;
+}
+.student-results-btns {
+  display: flex;
+  gap: 8px;
+}
+.student-results-graph {
+  flex: 1;
+  min-height: 0;
+  border: 1px solid #333;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #151520;
+}
+.student-results-status {
+  color: #888;
+  font-size: 12px;
+  text-align: center;
+  margin-top: 12px;
+}
+
+/* ===== View Results Button (student challenge mode) ===== */
+.challenge-view-results {
+  background: #3498db !important;
+  border: 1px solid #2980b9 !important;
+  border-radius: 4px;
+  color: #fff !important;
+  font-weight: 600;
+  padding: 6px 14px;
+  font-size: 12px;
+  margin-left: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.challenge-view-results:hover {
+  background: #2980b9 !important;
+}

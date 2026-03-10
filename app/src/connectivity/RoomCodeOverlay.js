@@ -17,6 +17,7 @@ export class RoomCodeOverlay {
    * @param {Function} onCancel - called when teacher cancels
    */
   show(roomCode, onShowResults, onCancel) {
+    this.roomCode = roomCode;
     this._onShowResults = onShowResults;
     this._onCancel = onCancel;
     this._build(roomCode);
@@ -53,6 +54,21 @@ export class RoomCodeOverlay {
     this._counterEl.className = 'roomcode-counter';
     this._counterEl.textContent = '0 submissions';
     card.appendChild(this._counterEl);
+
+    // Copy Link button
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'roomcode-copy-btn';
+    copyBtn.textContent = 'Copy Shareable Link';
+    copyBtn.addEventListener('click', () => {
+      const url = `${window.location.origin}${window.location.pathname}?join=${roomCode}`;
+      navigator.clipboard.writeText(url).then(() => {
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => { copyBtn.textContent = 'Copy Shareable Link'; }, 1500);
+      }).catch(() => {
+        prompt('Share this link:', url);
+      });
+    });
+    card.appendChild(copyBtn);
 
     // Buttons row
     const btnRow = document.createElement('div');

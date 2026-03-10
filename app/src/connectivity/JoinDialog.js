@@ -22,6 +22,21 @@ export class JoinDialog {
   show() {
     return new Promise((resolve) => {
       this._resolve = resolve;
+      this._prefillCode = null;
+      this._build();
+    });
+  }
+
+  /**
+   * Show the join dialog with a pre-filled room code (from a shareable link).
+   * Code input is read-only; focus goes to initials input.
+   * @param {string} code - the room code to pre-fill
+   * @returns {Promise<{ roomCode: string, initials: string, challengeData: object, settings: object } | null>}
+   */
+  showWithCode(code) {
+    return new Promise((resolve) => {
+      this._resolve = resolve;
+      this._prefillCode = code;
       this._build();
     });
   }
@@ -107,9 +122,20 @@ export class JoinDialog {
     this.el.appendChild(card);
     document.body.appendChild(this.el);
 
+    // Pre-fill room code if provided via shareable link
+    if (this._prefillCode) {
+      this._codeInput.value = this._prefillCode;
+      this._codeInput.readOnly = true;
+      this._codeInput.classList.add('prefilled');
+    }
+
     requestAnimationFrame(() => {
       this.el.classList.add('visible');
-      this._codeInput.focus();
+      if (this._prefillCode) {
+        this._initialsInput.focus();
+      } else {
+        this._codeInput.focus();
+      }
     });
 
     // Allow Enter key to submit

@@ -1,3 +1,5 @@
+import { SessionStore } from '../connectivity/SessionStore.js';
+
 /**
  * Full-screen overlay shown when the app starts blank.
  * User picks a world type (horizontal walking or vertical elevator).
@@ -122,6 +124,24 @@ export class WorldSelector {
     actionRow.appendChild(joinBtn);
 
     card.appendChild(actionRow);
+
+    // My Sessions section — show if there are saved sessions
+    const sessions = SessionStore.getSessions();
+    if (sessions.length > 0) {
+      const sessionDivider = document.createElement('div');
+      sessionDivider.className = 'world-selector-divider';
+      sessionDivider.textContent = 'my sessions';
+      card.appendChild(sessionDivider);
+
+      const sessionBtn = document.createElement('button');
+      sessionBtn.className = 'world-option-join';
+      sessionBtn.innerHTML = '\uD83D\uDCCB Re-open a Session';
+      sessionBtn.addEventListener('click', () => {
+        this.bus.emit('session:reopen-request');
+        this.dismiss();
+      });
+      card.appendChild(sessionBtn);
+    }
 
     this.el.appendChild(card);
     this.parentEl.appendChild(this.el);
