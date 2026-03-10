@@ -247,6 +247,7 @@ export class ComponentPalette {
             who wishes she had been able to learn from him longer.
           </p>
         </div>
+        <p class="about-disclaimer"><em>SimCalc Revisited is an independent project and is not affiliated with or endorsed by the University of Massachusetts Dartmouth.</em></p>
       </div>
     `;
 

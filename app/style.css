@@ -466,6 +466,15 @@ body {
   font-style: normal;
 }
 
+.about-disclaimer {
+  font-size: 11px;
+  color: #778;
+  text-align: center;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #333;
+}
+
 /* ===== Panels ===== */
 .panel {
   position: absolute;
