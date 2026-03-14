@@ -20,6 +20,10 @@ export class FrolicWorld {
 
     this._lastFacing = {};
 
+    // Panning state
+    this._panState = null;
+    this._setupPanning();
+
     this._resize();
     this._resizeObserver = new ResizeObserver(() => this._resize());
     this._resizeObserver.observe(canvas.parentElement);
@@ -196,7 +200,7 @@ export class FrolicWorld {
       ctx.stroke();
       // Label
       ctx.fillStyle = '#ddd';
-      ctx.fillText(d + 'm', x, groundY + 20);
+      ctx.fillText(d + (this.sim.unitLabel || 'm'), x, groundY + 20);
     }
   }
 
@@ -269,11 +273,10 @@ export class FrolicWorld {
         this._lastFacing[actor.id] = facing;
         const walkPhase = (currentTime * 3) % 1;
         motion = { facing, walkPhase };
-      } else if (this._lastFacing[actor.id]) {
-        motion = { facing: this._lastFacing[actor.id], walkPhase: 0 };
       }
+      // Zero velocity → front-facing idle pose (motion stays null)
 
-      drawAnimalCharacter(ctx, screenX, depthGroundY, actor.color, actor.name, depthScale, motion, actor.animalType, false);
+      drawAnimalCharacter(ctx, screenX, depthGroundY, actor.color, actor.name, depthScale, motion, actor.animalType, false, false);
     }
 
     // ── Time badge ──
@@ -283,6 +286,51 @@ export class FrolicWorld {
     ctx.font = 'bold 13px monospace';
     ctx.textAlign = 'left';
     ctx.fillText(`t = ${currentTime.toFixed(1)}s`, 14, 24);
+  }
+
+  // ── Panning (drag to shift position 0) ─────────────────
+
+  _setupPanning() {
+    const canvas = this.canvas;
+
+    canvas.addEventListener('mousedown', (e) => {
+      // Only pan with left button and no modifier keys
+      if (e.button !== 0 || e.ctrlKey || e.shiftKey) return;
+      this._panState = {
+        startX: e.clientX,
+        startMin: this.sim.posRange.min,
+        startMax: this.sim.posRange.max,
+      };
+      canvas.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!this._panState) {
+        canvas.style.cursor = 'grab';
+        return;
+      }
+      const dx = e.clientX - this._panState.startX;
+      const trackW = this.displayWidth - this.trackPadding.left - this.trackPadding.right;
+      const span = this._panState.startMax - this._panState.startMin;
+      const dataDx = -(dx / trackW) * span; // negative because dragging right = moving view left
+
+      this.sim.posRange.min = this._panState.startMin + dataDx;
+      this.sim.posRange.max = this._panState.startMax + dataDx;
+      this._bgDirty = true;
+      this.drawFrame(this.sim.currentTime);
+      this.bus.emit('posrange:changed', { posRange: this.sim.posRange });
+    });
+
+    const endPan = () => {
+      if (!this._panState) return;
+      this._panState = null;
+      canvas.style.cursor = 'grab';
+    };
+    canvas.addEventListener('mouseup', endPan);
+    canvas.addEventListener('mouseleave', endPan);
+
+    canvas.style.cursor = 'grab';
   }
 
   redraw() {

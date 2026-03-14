@@ -7,13 +7,14 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
  * PositionGraph and VelocityGraph both use this.
  */
 export class GraphRenderer {
-  constructor(container, { xRange, yRange, xLabel, yLabel, yMaxTicks }) {
+  constructor(container, { xRange, yRange, xLabel, yLabel, yMaxTicks, squareUnits }) {
     this.container = container;
     this.xRange = xRange;
     this.yRange = yRange;
     this.xLabel = xLabel;
     this.yLabel = yLabel;
     this.yMaxTicks = yMaxTicks || 8;
+    this.squareUnits = squareUnits || false;
     // Custom tick steps (null = auto via niceStep)
     this.xTickStep = null;
     this.yTickStep = null;
@@ -60,6 +61,23 @@ export class GraphRenderer {
       w: this.width - this.padding.left - this.padding.right,
       h: this.height - this.padding.top - this.padding.bottom
     };
+
+    // Enforce square units: 1 data unit = same number of pixels on both axes
+    if (this.squareUnits) {
+      const xSpan = this.xRange.max - this.xRange.min;
+      const ySpan = this.yRange.max - this.yRange.min;
+      if (xSpan > 0 && ySpan > 0) {
+        const pxPerUnitX = this.plotArea.w / xSpan;
+        const pxPerUnitY = this.plotArea.h / ySpan;
+        const targetPx = Math.min(pxPerUnitX, pxPerUnitY);
+        const newW = targetPx * xSpan;
+        const newH = targetPx * ySpan;
+        this.plotArea.x += (this.plotArea.w - newW) / 2;
+        this.plotArea.y += (this.plotArea.h - newH) / 2;
+        this.plotArea.w = newW;
+        this.plotArea.h = newH;
+      }
+    }
 
     this.drawGrid();
     this.drawAxes();

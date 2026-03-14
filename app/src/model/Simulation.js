@@ -10,7 +10,16 @@ export class Simulation {
     this.isPlaying = false;
     this.playbackSpeed = 1.0;
     this.targetSegments = [];
+
+    // Auto-detect distance units from browser locale
+    this.units = (navigator.language || '').startsWith('en-US') ? 'ft' : 'm';
   }
+
+  /** Short distance unit label: 'ft' or 'm' */
+  get unitLabel() { return this.units; }
+
+  /** Velocity unit label: 'ft/s' or 'm/s' */
+  get velocityUnitLabel() { return this.units === 'ft' ? 'ft/s' : 'm/s'; }
 
   addActor(actor) {
     this.actors.push(actor);

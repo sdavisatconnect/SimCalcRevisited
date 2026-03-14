@@ -14,7 +14,7 @@ export class PositionGraph {
       xRange: simulation.timeRange,
       yRange: simulation.posRange,
       xLabel: 'Time (s)',
-      yLabel: 'Position (m)'
+      yLabel: `Position (${simulation.unitLabel || 'm'})`
     });
 
     // Scale controls

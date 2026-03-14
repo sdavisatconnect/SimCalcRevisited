@@ -253,6 +253,20 @@ bus.on('actors:changed', () => {
   workspace.drawFrames(sim.currentTime);
 });
 
+// When the world is panned, update the position graph's y-range
+bus.on('posrange:changed', () => {
+  for (const panel of workspace.panels) {
+    if (panel.component && panel.component.graphRenderer) {
+      const renderer = panel.component.graphRenderer;
+      // Only update position graphs (yLabel contains "Position")
+      if (renderer.yLabel && renderer.yLabel.includes('Position')) {
+        renderer.setRanges(null, { ...sim.posRange });
+        if (panel.component.redraw) panel.component.redraw();
+      }
+    }
+  }
+});
+
 bus.on('actor:removed', ({ actorId }) => {
   for (const panel of workspace.panels) {
     panel.unlinkActor(actorId);

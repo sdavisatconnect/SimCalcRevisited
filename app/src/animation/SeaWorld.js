@@ -18,6 +18,10 @@ export class SeaWorld {
     // Seed-based background creatures (deterministic from index)
     this._bgCreatures = this._generateBgCreatures();
 
+    // Panning state
+    this._panState = null;
+    this._setupPanning();
+
     this._resize();
     this._resizeObserver = new ResizeObserver(() => this._resize());
     this._resizeObserver.observe(canvas.parentElement);
@@ -205,7 +209,7 @@ export class SeaWorld {
 
       // Label
       ctx.fillStyle = '#ddd';
-      ctx.fillText(d, this.labelWidth - 5, y + 3);
+      ctx.fillText(d + (this.sim.unitLabel || 'm'), this.labelWidth - 5, y + 3);
     }
 
     // ── Draw actors ──
@@ -218,12 +222,22 @@ export class SeaWorld {
       const pos = actor.getPositionAt(currentTime);
       const animalY = this.posToScreenY(pos);
       const underwater = pos < 0;
+      const flying = pos > 0;
+
+      // Velocity-based motion: moving = side-facing walk, stopped = front-facing idle
+      const vel = actor.getVelocityAt ? actor.getVelocityAt(currentTime) : 0;
+      let motion = null;
+      if (Math.abs(vel) > 0.1) {
+        const facing = vel > 0 ? 1 : -1;
+        const walkPhase = (currentTime * 3) % 1;
+        motion = { facing, walkPhase };
+      }
 
       // Scale animals similarly to ElevatorWorld
       const floorScale = Math.min((this.unitHeight - 4) / 40, 0.55);
       const charScale = n > 10 ? Math.max(0.2, floorScale * (10 / n)) : floorScale;
 
-      drawAnimalCharacter(ctx, cx, animalY, actor.color, actor.name, charScale, null, actor.animalType, underwater);
+      drawAnimalCharacter(ctx, cx, animalY, actor.color, actor.name, charScale, motion, actor.animalType, underwater, flying);
     }
 
     // ── Time badge ──
@@ -461,6 +475,50 @@ export class SeaWorld {
       ctx.stroke();
       ctx.lineCap = 'butt';
     }
+  }
+
+  // ── Panning (drag to shift position 0 up/down) ────────
+
+  _setupPanning() {
+    const canvas = this.canvas;
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button !== 0 || e.ctrlKey || e.shiftKey) return;
+      this._panState = {
+        startY: e.clientY,
+        startMin: this.sim.posRange.min,
+        startMax: this.sim.posRange.max,
+      };
+      canvas.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!this._panState) {
+        canvas.style.cursor = 'grab';
+        return;
+      }
+      const dy = e.clientY - this._panState.startY;
+      const areaH = this.areaBottom - this.areaTop;
+      const span = this._panState.startMax - this._panState.startMin;
+      // Dragging down = shifting view down = increasing position values shown
+      const dataDy = (dy / areaH) * span;
+
+      this.sim.posRange.min = this._panState.startMin + dataDy;
+      this.sim.posRange.max = this._panState.startMax + dataDy;
+      this._resize(); // recalculates layout from updated posRange
+      this.bus.emit('posrange:changed', { posRange: this.sim.posRange });
+    });
+
+    const endPan = () => {
+      if (!this._panState) return;
+      this._panState = null;
+      canvas.style.cursor = 'grab';
+    };
+    canvas.addEventListener('mouseup', endPan);
+    canvas.addEventListener('mouseleave', endPan);
+
+    canvas.style.cursor = 'grab';
   }
 
   redraw() {

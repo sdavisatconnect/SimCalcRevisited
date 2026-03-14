@@ -158,6 +158,7 @@ export class ElementaryWorldSelector {
         btn.classList.add('selected');
         this.selectedColor = color;
         this._startBtn.disabled = false;
+        this._drawPreview();
       });
 
       colorGrid.appendChild(btn);

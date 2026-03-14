@@ -24,8 +24,9 @@ export class UnifixVelocityGraph {
       xRange: { min: 0, max: simulation.timeRange.max || 10 },
       yRange,
       xLabel: 'Time (s)',
-      yLabel: 'Velocity (m/s)',
-      yMaxTicks: 10
+      yLabel: `Velocity (${simulation.velocityUnitLabel})`,
+      yMaxTicks: 10,
+      squareUnits: true
     });
 
     // Force integer tick marks
@@ -204,49 +205,41 @@ export class UnifixVelocityGraph {
   // ---- Ghost preview for drag-over feedback ----
 
   /**
-   * Show semi-transparent ghost blocks at a target grid cell.
-   * Renders the full column from y=0 to targetV.
+   * Show a single semi-transparent ghost block at the target grid position.
    */
-  showGhost(col, targetV, color) {
+  showGhost(col, targetRow, color) {
     this.clearGhost();
-    if (targetV === 0) return;
+    if (targetRow === 0) return;
 
     this._ghostGroup = document.createElementNS(SVG_NS, 'g');
     this._ghostGroup.setAttribute('class', 'unifix-ghost');
     this._ghostGroup.setAttribute('opacity', '0.4');
 
-    const count = Math.abs(targetV);
-    const sign = targetV > 0 ? 1 : -1;
-
-    for (let i = 1; i <= count; i++) {
-      const row = i * sign;
-
-      let yTop, yBottom;
-      if (row > 0) {
-        yTop = row;
-        yBottom = row - 1;
-      } else {
-        yTop = row + 1;
-        yBottom = row;
-      }
-
-      const topLeft = this.renderer.toScreen(col, yTop);
-      const bottomRight = this.renderer.toScreen(col + 1, yBottom);
-
-      const gap = 1;
-      const rect = this.renderer.makeRect(
-        topLeft.x + gap,
-        topLeft.y + gap,
-        Math.max(0, bottomRight.x - topLeft.x - gap * 2),
-        Math.max(0, bottomRight.y - topLeft.y - gap * 2),
-        'unifix-ghost-block'
-      );
-      rect.setAttribute('fill', color);
-      rect.setAttribute('stroke', color);
-      rect.setAttribute('stroke-width', '1');
-      rect.setAttribute('stroke-dasharray', '3 2');
-      this._ghostGroup.appendChild(rect);
+    let yTop, yBottom;
+    if (targetRow > 0) {
+      yTop = targetRow;
+      yBottom = targetRow - 1;
+    } else {
+      yTop = targetRow + 1;
+      yBottom = targetRow;
     }
+
+    const topLeft = this.renderer.toScreen(col, yTop);
+    const bottomRight = this.renderer.toScreen(col + 1, yBottom);
+
+    const gap = 1;
+    const rect = this.renderer.makeRect(
+      topLeft.x + gap,
+      topLeft.y + gap,
+      Math.max(0, bottomRight.x - topLeft.x - gap * 2),
+      Math.max(0, bottomRight.y - topLeft.y - gap * 2),
+      'unifix-ghost-block'
+    );
+    rect.setAttribute('fill', color);
+    rect.setAttribute('stroke', color);
+    rect.setAttribute('stroke-width', '1');
+    rect.setAttribute('stroke-dasharray', '3 2');
+    this._ghostGroup.appendChild(rect);
 
     this.renderer.dataGroup.appendChild(this._ghostGroup);
   }
@@ -270,6 +263,8 @@ export class UnifixVelocityGraph {
   // ---- Lifecycle ----
 
   refresh() {
+    // Ensure x-axis stays fixed at 0-10 seconds
+    this.renderer.xRange = { min: 0, max: this.sim.timeRange.max || 10 };
     this._autoExpandYRange();
     this.renderer.xTickStep = 1;
     this.renderer.yTickStep = 1;

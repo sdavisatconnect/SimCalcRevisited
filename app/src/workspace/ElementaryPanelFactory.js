@@ -83,7 +83,7 @@ export class ElementaryPanelFactory {
     switch (type) {
       case 'world': return this.sim.worldType === 'sea' ? 'Sea World' : 'Frolic World';
       case 'position': return 'Position vs Time';
-      case 'velocity': return 'Speed vs Time';
+      case 'velocity': return 'Velocity vs Time';
       default: return type;
     }
   }

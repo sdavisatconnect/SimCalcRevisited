@@ -13,9 +13,10 @@
  * @param {number} motion.facing  - -1 = left, 0 = forward, 1 = right
  * @param {number} motion.walkPhase - 0-1 cyclic phase for leg/body animation
  * @param {string} animalType - 'puppy'|'kitten'|'elephant'|'horse'|'cow'|'bunny'|'duck'|'penguin'|'frog'|'bear'
- * @param {boolean} underwater - when true, overlay scuba mask and bubble trail
+ * @param {boolean} underwater - when true, overlay fishbowl helmet and bubble trail
+ * @param {boolean} flying - when true, overlay wings (SeaWorld above water)
  */
-export function drawAnimalCharacter(ctx, x, groundY, color, name, scale = 1, motion, animalType, underwater) {
+export function drawAnimalCharacter(ctx, x, groundY, color, name, scale = 1, motion, animalType, underwater, flying) {
   const s = scale;
   const facing = motion ? motion.facing : 0;
   const walkPhase = motion ? motion.walkPhase : 0;
@@ -36,12 +37,19 @@ export function drawAnimalCharacter(ctx, x, groundY, color, name, scale = 1, mot
     drawFn.front(ctx, x, groundY, color, s, walkPhase);
   }
 
-  // Underwater overlay (scuba mask + bubbles) drawn before restore so it flips with facing
+  // Underwater overlay: fishbowl helmet + bubbles
   if (underwater) {
     const headTop = drawFn.headTop(groundY, s);
-    const headCenterY = headTop + drawFn.headH(s) * 0.4;
-    _drawScubaMask(ctx, x, headCenterY, s);
+    const headCenterY = headTop + drawFn.headH(s) * 0.5;
+    _drawFishbowlHelmet(ctx, x, headCenterY, s);
     _drawBubbles(ctx, x, headTop, s, walkPhase);
+  }
+
+  // Flying overlay: wings (for SeaWorld above water)
+  if (flying) {
+    const headTop = drawFn.headTop(groundY, s);
+    const bodyMidY = headTop + drawFn.headH(s) * 1.5;
+    _drawWings(ctx, x, bodyMidY, s, walkPhase);
   }
 
   ctx.restore();
@@ -119,30 +127,72 @@ function _drawSideEye(ctx, eyeX, eyeY, radius, s) {
   ctx.fill();
 }
 
-/** Draw scuba mask goggles over eyes */
-function _drawScubaMask(ctx, x, eyeY, s) {
-  // Goggles band
-  ctx.fillStyle = 'rgba(0, 200, 255, 0.5)';
-  _roundRect(ctx, x - 12 * s, eyeY - 5 * s, 24 * s, 10 * s, 3 * s);
+/** Draw old-fashioned fishbowl helmet (upside-down glass dome) over head */
+function _drawFishbowlHelmet(ctx, x, headCenterY, s) {
+  const r = 16 * s; // dome radius — larger than the head
+
+  // Glass dome — semi-transparent blue-tinted
+  ctx.fillStyle = 'rgba(200, 230, 255, 0.35)';
+  ctx.beginPath();
+  ctx.arc(x, headCenterY, r, 0, Math.PI * 2);
   ctx.fill();
-  // Goggle rims
-  ctx.strokeStyle = '#555';
-  ctx.lineWidth = 1.2 * s;
-  _roundRect(ctx, x - 12 * s, eyeY - 5 * s, 24 * s, 10 * s, 3 * s);
+
+  // Dome rim/outline
+  ctx.strokeStyle = 'rgba(120, 180, 220, 0.6)';
+  ctx.lineWidth = 1.5 * s;
+  ctx.beginPath();
+  ctx.arc(x, headCenterY, r, 0, Math.PI * 2);
   ctx.stroke();
-  // Tube on top
-  ctx.strokeStyle = '#777';
+
+  // Flat bottom edge of the helmet (the opening)
+  ctx.strokeStyle = 'rgba(100, 160, 200, 0.7)';
   ctx.lineWidth = 2 * s;
   ctx.beginPath();
-  ctx.moveTo(x + 10 * s, eyeY - 5 * s);
-  ctx.lineTo(x + 12 * s, eyeY - 14 * s);
-  ctx.lineTo(x + 14 * s, eyeY - 16 * s);
+  ctx.moveTo(x - r * 0.85, headCenterY + r * 0.55);
+  ctx.lineTo(x + r * 0.85, headCenterY + r * 0.55);
   ctx.stroke();
-  // Tube mouthpiece
-  ctx.fillStyle = '#666';
+
+  // White highlight arc (glass reflection, upper-left)
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+  ctx.lineWidth = 2 * s;
   ctx.beginPath();
-  ctx.arc(x + 14 * s, eyeY - 16 * s, 1.5 * s, 0, Math.PI * 2);
+  ctx.arc(x - 3 * s, headCenterY - 2 * s, r * 0.7, -Math.PI * 0.8, -Math.PI * 0.3);
+  ctx.stroke();
+
+  // Small secondary highlight
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+  ctx.lineWidth = 1 * s;
+  ctx.beginPath();
+  ctx.arc(x + 5 * s, headCenterY - 4 * s, r * 0.4, -Math.PI * 0.6, -Math.PI * 0.2);
+  ctx.stroke();
+}
+
+/** Draw flapping wings (for above-water flight in SeaWorld) */
+function _drawWings(ctx, x, bodyMidY, s, walkPhase) {
+  const wingW = 18 * s;
+  const wingH = 10 * s;
+  // Flap angle oscillates with walkPhase
+  const flapOffset = Math.sin(walkPhase * Math.PI * 2) * 4 * s;
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+  ctx.strokeStyle = 'rgba(200, 200, 200, 0.6)';
+  ctx.lineWidth = 1 * s;
+
+  // Left wing
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(x - 14 * s, bodyMidY - flapOffset, wingW, wingH, -0.3, 0, Math.PI * 2);
   ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+
+  // Right wing
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(x + 14 * s, bodyMidY + flapOffset, wingW, wingH, 0.3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
 }
 
 /** Draw bubble trail above head */

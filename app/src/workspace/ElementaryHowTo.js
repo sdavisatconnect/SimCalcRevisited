@@ -26,6 +26,16 @@ export class ElementaryHowTo {
       <div class="about-body">
 
         <div class="howto-step">
+          <h3>📚 What is Velocity?</h3>
+          <p>
+            <strong>Velocity</strong> means how fast something is going
+            and which direction! Positive velocity = forward.
+            Negative velocity = backward. You can click 🔊 in the
+            sidebar to hear the word!
+          </p>
+        </div>
+
+        <div class="howto-step">
           <h3>🌍 1. Pick Your World</h3>
           <p>
             Choose <strong>Frolic World</strong> to run through fields, or

@@ -2,109 +2,117 @@ import { UnifixBlockModel } from './UnifixBlockModel.js';
 
 /**
  * Handles mouse and drag events for unifix cube block manipulation.
- * Simplified interaction manager specifically for the snap-to-grid
- * unifix block velocity graph in the elementary SimCalc edition.
- *
  * Interaction modes:
- *  1. Drag from sidebar: drop a block tool to add blocks to a column
- *  2. Click to remove: click an existing block to remove it and everything above/below
- *  3. Drag-over feedback: ghost preview of where blocks would be placed
+ *  1. Drag from sidebar: drop a single block on the next available slot
+ *  2. Pointer mode: click-and-drag existing blocks to reposition
+ *  3. Eraser mode: click on a block to remove it
+ *  4. Drag-over feedback: single ghost block at the next available slot
  */
 export class UnifixBlockInteraction {
   constructor(simulation, bus) {
     this.sim = simulation;
     this.bus = bus;
     this.graphs = new Map(); // panelId -> { svg, component, listeners }
+    this._activeTool = 'pointer'; // 'pointer' or 'eraser'
+    this._dragState = null; // { actor, sourceCol, sourceRow, entry }
+
+    bus.on('tool:changed', ({ tool }) => {
+      this._activeTool = tool;
+    });
   }
 
   /**
    * Register a UnifixVelocityGraph for interaction.
-   * @param {string} panelId
-   * @param {SVGElement} svg
-   * @param {import('./UnifixVelocityGraph.js').UnifixVelocityGraph} graphComponent
    */
   registerGraph(panelId, svg, graphComponent) {
-    // Build bound handlers so we can remove them later
     const entry = {
       svg,
       component: graphComponent,
       listeners: {}
     };
 
+    // Sidebar drag-and-drop handlers
     entry.listeners.dragover = (e) => this._handleToolDragOver(e, entry);
     entry.listeners.dragleave = (e) => this._handleToolDragLeave(e, entry);
     entry.listeners.drop = (e) => this._handleToolDrop(e, entry);
-    entry.listeners.click = (e) => this._handleClick(e, entry);
+
+    // Mouse handlers for block manipulation (drag-to-move + eraser click)
+    entry.listeners.mousedown = (e) => this._handleMouseDown(e, entry);
+    entry.listeners.mousemove = (e) => this._handleMouseMove(e, entry);
+    entry.listeners.mouseup = (e) => this._handleMouseUp(e, entry);
+    entry.listeners.mouseleave = (e) => this._handleMouseLeave(e, entry);
 
     svg.addEventListener('dragover', entry.listeners.dragover);
     svg.addEventListener('dragleave', entry.listeners.dragleave);
     svg.addEventListener('drop', entry.listeners.drop);
-    svg.addEventListener('click', entry.listeners.click);
+    svg.addEventListener('mousedown', entry.listeners.mousedown);
+    svg.addEventListener('mousemove', entry.listeners.mousemove);
+    svg.addEventListener('mouseup', entry.listeners.mouseup);
+    svg.addEventListener('mouseleave', entry.listeners.mouseleave);
 
     this.graphs.set(panelId, entry);
   }
 
-  /**
-   * Unregister a graph panel and remove its event listeners.
-   */
   unregisterGraph(panelId) {
     const entry = this.graphs.get(panelId);
     if (!entry) return;
-
-    entry.svg.removeEventListener('dragover', entry.listeners.dragover);
-    entry.svg.removeEventListener('dragleave', entry.listeners.dragleave);
-    entry.svg.removeEventListener('drop', entry.listeners.drop);
-    entry.svg.removeEventListener('click', entry.listeners.click);
-
+    for (const [evt, fn] of Object.entries(entry.listeners)) {
+      entry.svg.removeEventListener(evt, fn);
+    }
     this.graphs.delete(panelId);
   }
 
-  // ---- Drag-over: ghost preview ----
+  // ──── Sidebar drag-over: single ghost block ────
 
   _handleToolDragOver(e, entry) {
-    // Check whether this is a valid block tool drag
     if (!this._isBlockToolDrag(e)) return;
-
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
     entry.svg.classList.add('unifix-drop-target');
 
-    // Compute target grid cell
-    const { col, row } = this._screenToGridCell(e, entry);
+    const { col } = this._screenToGridCell(e, entry);
     if (col < 0) return;
 
-    // Find the first editable actor
     const actor = this._getEditableActor(entry);
     if (!actor) return;
 
-    entry.component.showGhost(col, row, actor.color);
+    // Compute next available slot (on top of existing stack)
+    const data = this._screenToData(e, entry);
+    const sign = data.v >= 0 ? 1 : -1;
+    const model = new UnifixBlockModel(actor);
+    const currentHeight = model.getBlockCount(col);
+    let targetRow;
+
+    if (currentHeight === 0) {
+      // Empty column — place at ±1
+      targetRow = sign;
+    } else if (Math.sign(currentHeight) === sign) {
+      // Same sign — stack on top
+      targetRow = currentHeight + sign;
+    } else {
+      // Hovering on opposite side of existing blocks — place at ±1 on that side
+      targetRow = sign;
+    }
+
+    entry.component.showGhost(col, targetRow, actor.color);
   }
 
   _handleToolDragLeave(e, entry) {
-    // Only act when truly leaving the SVG (not entering a child element)
     if (entry.svg.contains(e.relatedTarget)) return;
-
     entry.svg.classList.remove('unifix-drop-target');
     entry.component.clearGhost();
   }
 
-  // ---- Drop: place blocks ----
+  // ──── Sidebar drop: place single block ────
 
   _handleToolDrop(e, entry) {
     entry.svg.classList.remove('unifix-drop-target');
     entry.component.clearGhost();
 
-    // Validate tool type
     const toolData = e.dataTransfer.getData('text/graph-tool');
     if (!toolData) return;
-
     let parsed;
-    try {
-      parsed = JSON.parse(toolData);
-    } catch {
-      return;
-    }
-
+    try { parsed = JSON.parse(toolData); } catch { return; }
     if (parsed.tool !== 'add-block') return;
 
     e.preventDefault();
@@ -113,93 +121,197 @@ export class UnifixBlockInteraction {
     const actor = this._getEditableActor(entry);
     if (!actor) return;
 
-    const { col, row } = this._screenToGridCell(e, entry);
-    if (row === 0) return; // dropping on zero line does nothing
+    const { col } = this._screenToGridCell(e, entry);
+    const data = this._screenToData(e, entry);
+    const sign = data.v >= 0 ? 1 : -1;
 
     const model = new UnifixBlockModel(actor);
-    model.addBlocksToColumn(col, row);
+    const currentHeight = model.getBlockCount(col);
+
+    let targetRow;
+    if (currentHeight === 0) {
+      targetRow = sign;
+    } else if (Math.sign(currentHeight) === sign) {
+      targetRow = currentHeight + sign;
+    } else {
+      // Opposite side — start a new stack
+      targetRow = sign;
+      // Clear existing opposite-sign blocks first
+      model.setColumn(col, 0);
+    }
+
+    // Set column to the new height (targetRow includes all blocks from 0)
+    model.setColumn(col, targetRow);
     model.rebuildPLF();
 
     this.bus.emit('actor:edited', { actorId: actor.id });
     entry.component.redraw();
   }
 
-  // ---- Click: remove blocks ----
+  // ──── Mouse: block drag-to-move (pointer) / click-to-remove (eraser) ────
 
-  _handleClick(e, entry) {
-    // Walk up from the click target to find a unifix-block element
-    let target = e.target;
-    let col = null;
-    let row = null;
-
-    // Check the target and its ancestors (within the SVG) for data attributes
-    while (target && target !== entry.svg) {
-      if (target.hasAttribute('data-col') && target.hasAttribute('data-row')) {
-        col = parseInt(target.getAttribute('data-col'), 10);
-        row = parseInt(target.getAttribute('data-row'), 10);
-        break;
-      }
-      target = target.parentNode;
-    }
-
-    if (col === null || row === null) return;
-    if (isNaN(col) || isNaN(row) || row === 0) return;
+  _handleMouseDown(e, entry) {
+    // Find which block was clicked
+    const block = this._findBlockAt(e, entry);
+    if (!block) return;
 
     const actor = this._getEditableActor(entry);
     if (!actor) return;
 
+    const { col, row } = block;
     const model = new UnifixBlockModel(actor);
-    model.removeFromColumn(col, row);
+    const currentHeight = model.getBlockCount(col);
+
+    if (this._activeTool === 'eraser') {
+      // Eraser mode: remove from clicked block outward
+      model.removeFromColumn(col, row);
+      model.rebuildPLF();
+      this.bus.emit('actor:edited', { actorId: actor.id });
+      entry.component.redraw();
+      return;
+    }
+
+    // Pointer mode: only allow dragging the topmost block
+    if (row !== currentHeight) return;
+
+    // Start drag
+    this._dragState = { actor, sourceCol: col, sourceRow: row, entry };
+
+    // Visually remove the top block from source column
+    const newHeight = currentHeight > 0 ? currentHeight - 1 : currentHeight + 1;
+    model.setColumn(col, newHeight === 0 ? 0 : newHeight);
     model.rebuildPLF();
+    entry.component.redraw();
+
+    // Show ghost at current position
+    entry.component.showGhost(col, row, actor.color);
+    entry.svg.style.cursor = 'grabbing';
+
+    e.preventDefault();
+  }
+
+  _handleMouseMove(e, entry) {
+    if (!this._dragState || this._dragState.entry !== entry) return;
+
+    const { col } = this._screenToGridCell(e, entry);
+    const data = this._screenToData(e, entry);
+    const sign = data.v >= 0 ? 1 : -1;
+
+    const model = new UnifixBlockModel(this._dragState.actor);
+    const currentHeight = model.getBlockCount(col);
+
+    let targetRow;
+    if (currentHeight === 0) {
+      targetRow = sign;
+    } else if (Math.sign(currentHeight) === sign) {
+      targetRow = currentHeight + sign;
+    } else {
+      targetRow = sign;
+    }
+
+    entry.component.showGhost(col, targetRow, this._dragState.actor.color);
+  }
+
+  _handleMouseUp(e, entry) {
+    if (!this._dragState || this._dragState.entry !== entry) return;
+
+    entry.component.clearGhost();
+    entry.svg.style.cursor = '';
+
+    const { actor } = this._dragState;
+    const { col } = this._screenToGridCell(e, entry);
+    const data = this._screenToData(e, entry);
+    const sign = data.v >= 0 ? 1 : -1;
+
+    const model = new UnifixBlockModel(actor);
+    const currentHeight = model.getBlockCount(col);
+
+    let targetRow;
+    if (currentHeight === 0) {
+      targetRow = sign;
+    } else if (Math.sign(currentHeight) === sign) {
+      targetRow = currentHeight + sign;
+    } else {
+      targetRow = sign;
+      model.setColumn(col, 0);
+    }
+
+    model.setColumn(col, targetRow);
+    model.rebuildPLF();
+
+    this._dragState = null;
 
     this.bus.emit('actor:edited', { actorId: actor.id });
     entry.component.redraw();
   }
 
-  // ---- Helpers ----
+  _handleMouseLeave(e, entry) {
+    if (!this._dragState || this._dragState.entry !== entry) return;
 
-  /**
-   * Check whether the current drag event carries a valid block tool payload.
-   * During dragover, dataTransfer content is not readable (browser security),
-   * so we check the available types instead.
-   */
+    // Cancel drag — return block to source
+    entry.component.clearGhost();
+    entry.svg.style.cursor = '';
+
+    const { actor, sourceCol, sourceRow } = this._dragState;
+    const model = new UnifixBlockModel(actor);
+    // Restore: set source column back to include the dragged block
+    model.setColumn(sourceCol, sourceRow);
+    model.rebuildPLF();
+
+    this._dragState = null;
+
+    this.bus.emit('actor:edited', { actorId: actor.id });
+    entry.component.redraw();
+  }
+
+  // ──── Helpers ────
+
   _isBlockToolDrag(e) {
     return e.dataTransfer.types.includes('text/graph-tool');
   }
 
   /**
-   * Convert a mouse/drag event position to the nearest integer grid cell.
-   * Returns {col, row} where col = time column (integer) and row = velocity row (integer).
-   * Row is clamped to the current y-range.
+   * Convert event to grid cell {col, row}.
    */
   _screenToGridCell(e, entry) {
-    const renderer = entry.component.graphRenderer;
-    const rect = entry.svg.getBoundingClientRect();
-    const svgX = e.clientX - rect.left;
-    const svgY = e.clientY - rect.top;
-    const data = renderer.toData(svgX, svgY);
-
+    const data = this._screenToData(e, entry);
     const col = Math.floor(data.t);
     let row = Math.round(data.v);
-
-    // Don't allow row = 0 from rounding; nudge to +1 or -1 based on actual position
-    if (row === 0) {
-      row = data.v >= 0 ? 1 : -1;
-    }
-
-    // Clamp to the current y-axis range
-    const yRange = renderer.yRange;
+    if (row === 0) row = data.v >= 0 ? 1 : -1;
+    const yRange = entry.component.graphRenderer.yRange;
     row = Math.max(yRange.min, Math.min(yRange.max, row));
-
     return { col: Math.max(0, col), row };
   }
 
   /**
-   * Find the first editable (non-readonly) linked actor for a graph entry.
+   * Convert event to raw data coordinates {t, v} (not snapped).
    */
+  _screenToData(e, entry) {
+    const renderer = entry.component.graphRenderer;
+    const rect = entry.svg.getBoundingClientRect();
+    return renderer.toData(e.clientX - rect.left, e.clientY - rect.top);
+  }
+
+  /**
+   * Find block data-col/data-row at the click target.
+   */
+  _findBlockAt(e, entry) {
+    let target = e.target;
+    while (target && target !== entry.svg) {
+      if (target.hasAttribute('data-col') && target.hasAttribute('data-row')) {
+        const col = parseInt(target.getAttribute('data-col'), 10);
+        const row = parseInt(target.getAttribute('data-row'), 10);
+        if (!isNaN(col) && !isNaN(row) && row !== 0) {
+          return { col, row };
+        }
+      }
+      target = target.parentNode;
+    }
+    return null;
+  }
+
   _getEditableActor(entry) {
-    const actors = entry.component.linkedActors;
-    for (const actor of actors) {
+    for (const actor of entry.component.linkedActors) {
       if (!actor.readOnly) return actor;
     }
     return null;

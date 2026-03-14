@@ -1,6 +1,6 @@
 /**
  * Simplified sidebar for elementary edition.
- * Contains: unifix cube drag tool, eraser mode, clear all, tips.
+ * Contains: velocity block drag tool, eraser mode, clear all, tips.
  */
 export class ElementarySidebar {
   constructor(containerEl, bus) {
@@ -13,14 +13,32 @@ export class ElementarySidebar {
   _build() {
     this.el.innerHTML = '';
 
-    // --- Blocks section ---
-    const blocksSection = this._createSection('Blocks');
+    // --- Velocity section ---
+    const blocksSection = this._createSection('Velocity');
 
-    // Unifix cube draggable tool
+    // Velocity block draggable tool
     const cubeTool = document.createElement('div');
     cubeTool.className = 'elementary-cube-tool';
     cubeTool.draggable = true;
-    cubeTool.innerHTML = '<div class="elementary-cube-icon"></div> Drag a Block';
+
+    const cubeLabel = document.createElement('span');
+    cubeLabel.innerHTML = '<div class="elementary-cube-icon"></div> Velocity Block';
+    cubeTool.appendChild(cubeLabel);
+
+    // Pronunciation button
+    const speakBtn = document.createElement('button');
+    speakBtn.className = 'velocity-speak-btn';
+    speakBtn.textContent = '🔊';
+    speakBtn.title = 'Hear "velocity"';
+    speakBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const utterance = new SpeechSynthesisUtterance('velocity');
+      utterance.rate = 0.8;
+      speechSynthesis.speak(utterance);
+    });
+    cubeTool.appendChild(speakBtn);
+
     cubeTool.addEventListener('dragstart', (e) => {
       e.dataTransfer.setData('text/graph-tool', JSON.stringify({
         tool: 'add-block',
@@ -75,7 +93,7 @@ export class ElementarySidebar {
     const tips = document.createElement('div');
     tips.className = 'elementary-tips';
     tips.innerHTML = `
-      <p>🧱 Drag blocks onto the speed graph!</p>
+      <p>🧱 Drag velocity blocks onto the graph!</p>
       <p>📈 Stack higher to go faster!</p>
       <p>⬇️ Blocks below the line go backward!</p>
       <p>▶️ Press Play to watch!</p>

@@ -530,6 +530,21 @@
   color: #888;
 }
 
+.velocity-speak-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  vertical-align: middle;
+  margin-left: 4px;
+  border-radius: 4px;
+}
+
+.velocity-speak-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
 .howto-step {
   margin-bottom: 8px;
 }
