@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SimCalc Feedback Admin</title>
+  <title>SimCalc Admin Console</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -289,13 +289,89 @@
       color: #556;
       font-size: 15px;
     }
+
+    /* --- Admin Tabs --- */
+    .admin-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 20px;
+      border-bottom: 1px solid #1a2a44;
+    }
+
+    .admin-tab {
+      padding: 10px 24px;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      color: #889;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .admin-tab:hover { color: #bbc; }
+    .admin-tab.active { color: #3498db; border-bottom-color: #3498db; }
+
+    .admin-section { display: none; }
+    .admin-section.active { display: block; }
+
+    /* --- Activity admin table --- */
+    .act-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .act-badge.standalone { background: #27ae6033; color: #2ecc71; }
+    .act-badge.connectivity { background: #3498db33; color: #3498db; }
+    .act-badge.grade { background: #88999920; color: #99a; }
+
+    .act-status-cell select {
+      padding: 3px 6px;
+      border: 1px solid #0f3460;
+      border-radius: 4px;
+      background: #16213e;
+      color: #dde;
+      font-size: 11px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .act-title-preview {
+      max-width: 250px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #ccd;
+      font-weight: 600;
+    }
+
+    .act-detail-value {
+      font-size: 13px;
+      color: #ccd;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .act-download-link {
+      color: #8af;
+      cursor: pointer;
+      text-decoration: underline;
+      font-size: 12px;
+    }
+
+    .act-download-link:hover { color: #acf; }
   </style>
 </head>
 <body>
 
   <!-- Password Gate -->
   <div class="gate" id="gate">
-    <h1>SimCalc Feedback Admin</h1>
+    <h1>SimCalc Admin Console</h1>
     <div class="gate-row">
       <input type="password" id="gate-password" placeholder="Enter admin password" autofocus />
       <button id="gate-submit">Enter</button>
@@ -306,45 +382,96 @@
   <!-- Admin Panel (hidden until authenticated) -->
   <div class="admin" id="admin">
     <div class="admin-header">
-      <h1>Feedback Console</h1>
-      <div class="admin-stats">
-        <span>Total: <strong id="stat-total">0</strong></span>
-        <span>New: <span class="badge" id="stat-new">0</span></span>
+      <h1>SimCalc Admin Console</h1>
+    </div>
+
+    <div class="admin-tabs">
+      <button class="admin-tab active" data-section="feedback-section">Feedback</button>
+      <button class="admin-tab" data-section="activities-section">Activities</button>
+    </div>
+
+    <!-- Feedback Section -->
+    <div class="admin-section active" id="feedback-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div class="admin-stats">
+          <span>Total: <strong id="stat-total">0</strong></span>
+          <span>New: <span class="badge" id="stat-new">0</span></span>
+        </div>
       </div>
+
+      <div class="admin-filters">
+        <select id="filter-status">
+          <option value="">All Statuses</option>
+          <option value="new">New</option>
+          <option value="reviewing">Reviewing</option>
+          <option value="planned">Planned</option>
+          <option value="done">Done</option>
+          <option value="wont-fix">Won't Fix</option>
+        </select>
+        <select id="filter-category">
+          <option value="">All Categories</option>
+          <option value="bug">Bug</option>
+          <option value="feature">Feature</option>
+          <option value="other">Other</option>
+        </select>
+        <button class="export-btn" id="export-btn">Export CSV</button>
+      </div>
+
+      <table class="fb-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Message</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="fb-body"></tbody>
+      </table>
+
+      <div class="empty-state" id="empty-state" style="display:none">No feedback entries yet.</div>
     </div>
 
-    <div class="admin-filters">
-      <select id="filter-status">
-        <option value="">All Statuses</option>
-        <option value="new">New</option>
-        <option value="reviewing">Reviewing</option>
-        <option value="planned">Planned</option>
-        <option value="done">Done</option>
-        <option value="wont-fix">Won't Fix</option>
-      </select>
-      <select id="filter-category">
-        <option value="">All Categories</option>
-        <option value="bug">Bug</option>
-        <option value="feature">Feature</option>
-        <option value="other">Other</option>
-      </select>
-      <button class="export-btn" id="export-btn">Export CSV</button>
+    <!-- Activities Section -->
+    <div class="admin-section" id="activities-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div class="admin-stats">
+          <span>Total: <strong id="act-stat-total">0</strong></span>
+          <span>Pending: <span class="badge" id="act-stat-pending">0</span></span>
+        </div>
+      </div>
+
+      <div class="admin-filters">
+        <select id="act-filter-status">
+          <option value="">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+        <select id="act-filter-category">
+          <option value="">All Categories</option>
+          <option value="standalone">Standalone</option>
+          <option value="connectivity">Connectivity</option>
+        </select>
+      </div>
+
+      <table class="fb-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Title</th>
+            <th>Author</th>
+            <th>Category</th>
+            <th>Grade</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="act-body"></tbody>
+      </table>
+
+      <div class="empty-state" id="act-empty-state" style="display:none">No activity submissions yet.</div>
     </div>
-
-    <table class="fb-table">
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Name</th>
-          <th>Category</th>
-          <th>Message</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody id="fb-body"></tbody>
-    </table>
-
-    <div class="empty-state" id="empty-state" style="display:none">No feedback entries yet.</div>
   </div>
 
   <script>
@@ -410,7 +537,19 @@
       gateEl.style.display = 'none';
       adminEl.style.display = 'block';
       loadFeedback();
+      loadActivities();
     }
+
+    // --- Admin Tab Switching ---
+    document.querySelectorAll('.admin-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.section).classList.add('active');
+      });
+    });
+
 
     async function loadFeedback() {
       try {
@@ -642,6 +781,251 @@
       a.click();
       URL.revokeObjectURL(url);
     });
+
+    // --- Activities Management ---
+    let activitiesData = {};
+    let actSaveTimers = {};
+
+    async function loadActivities() {
+      try {
+        const res = await fetch(`${FIREBASE_URL}/activities.json`);
+        activitiesData = (await res.json()) || {};
+        renderActivitiesTable();
+      } catch (err) {
+        console.error('Failed to load activities:', err);
+      }
+    }
+
+    function renderActivitiesTable() {
+      const tbody = document.getElementById('act-body');
+      const emptyState = document.getElementById('act-empty-state');
+      const statusFilter = document.getElementById('act-filter-status').value;
+      const categoryFilter = document.getElementById('act-filter-category').value;
+
+      let entries = Object.entries(activitiesData)
+        .map(([key, val]) => ({ key, ...val }))
+        .sort((a, b) => (b.submittedAt || 0) - (a.submittedAt || 0));
+
+      if (statusFilter) entries = entries.filter(e => e.status === statusFilter);
+      if (categoryFilter) entries = entries.filter(e => e.category === categoryFilter);
+
+      // Stats
+      const allEntries = Object.values(activitiesData);
+      document.getElementById('act-stat-total').textContent = allEntries.length;
+      document.getElementById('act-stat-pending').textContent = allEntries.filter(e => e.status === 'pending').length;
+
+      if (entries.length === 0) {
+        tbody.innerHTML = '';
+        emptyState.style.display = 'block';
+        return;
+      }
+
+      emptyState.style.display = 'none';
+      tbody.innerHTML = '';
+
+      for (const entry of entries) {
+        const row = document.createElement('tr');
+        row.className = 'fb-row';
+
+        const date = new Date(entry.submittedAt || 0);
+        const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+        row.innerHTML = `
+          <td>${dateStr}</td>
+          <td class="act-title-preview">${esc(entry.title || '')}</td>
+          <td>${esc(entry.author || '')}</td>
+          <td><span class="act-badge ${entry.category || ''}">${esc(entry.category || '')}</span></td>
+          <td><span class="act-badge grade">${esc(entry.gradeLevel || '')}</span></td>
+          <td class="act-status-cell">
+            <select data-key="${entry.key}" class="act-status-select">
+              <option value="pending" ${entry.status === 'pending' ? 'selected' : ''}>Pending</option>
+              <option value="approved" ${entry.status === 'approved' ? 'selected' : ''}>Approved</option>
+              <option value="rejected" ${entry.status === 'rejected' ? 'selected' : ''}>Rejected</option>
+            </select>
+          </td>
+        `;
+
+        // Detail row
+        const detail = document.createElement('tr');
+        detail.className = 'fb-detail';
+
+        const handouts = entry.handouts || [];
+        const handoutsHtml = handouts.length > 0
+          ? handouts.map((h, i) => `<span class="act-download-link" data-key="${entry.key}" data-index="${i}" data-type="${h.type}" data-url="${esc(h.url || '')}">${esc(h.name || `Handout ${i+1}`)}</span>`).join(' &nbsp; ')
+          : 'None';
+
+        detail.innerHTML = `
+          <td colspan="6">
+            <div class="fb-detail-inner">
+              <div class="fb-detail-section">
+                <div class="fb-detail-label">Email</div>
+                <div class="fb-detail-value">${esc(entry.authorEmail || '')}</div>
+              </div>
+              <div class="fb-detail-section">
+                <div class="fb-detail-label">Grade Level</div>
+                <div class="fb-detail-value">${esc(entry.gradeLevel || '')}</div>
+              </div>
+              <div class="fb-detail-section fb-detail-full">
+                <div class="fb-detail-label">Standards</div>
+                <div class="act-detail-value">${esc(entry.standards || '')}</div>
+              </div>
+              <div class="fb-detail-section fb-detail-full">
+                <div class="fb-detail-label">Objectives</div>
+                <div class="act-detail-value">${esc(entry.objectives || '')}</div>
+              </div>
+              <div class="fb-detail-section fb-detail-full">
+                <div class="fb-detail-label">Overview</div>
+                <div class="act-detail-value">${esc(entry.overview || '')}</div>
+              </div>
+              <div class="fb-detail-section fb-detail-full">
+                <div class="fb-detail-label">Teacher Moves</div>
+                <div class="act-detail-value">${esc(entry.teacherMoves || '')}</div>
+              </div>
+              <div class="fb-detail-section">
+                <div class="fb-detail-label">Template File</div>
+                <div class="fb-detail-value">
+                  ${entry.templateFile ? `<span class="act-download-link" data-action="download-template" data-key="${entry.key}">${esc(entry.templateFileName || 'Download Template')}</span>` : 'None'}
+                </div>
+              </div>
+              <div class="fb-detail-section">
+                <div class="fb-detail-label">Handouts</div>
+                <div class="fb-detail-value">${handoutsHtml}</div>
+              </div>
+              <div class="fb-detail-section">
+                <div class="fb-detail-label">Classic SimCalc</div>
+                <div class="fb-detail-value">
+                  <label style="cursor:pointer;display:flex;align-items:center;gap:6px;">
+                    <input type="checkbox" class="act-classic-toggle" data-key="${entry.key}" ${entry.isClassic ? 'checked' : ''} />
+                    Mark as ported from Classic SimCalc
+                  </label>
+                </div>
+              </div>
+              <div class="fb-detail-section fb-detail-full">
+                <div class="fb-detail-label">Admin Notes</div>
+                <textarea class="fb-notes-textarea act-notes" data-key="${entry.key}" placeholder="Add notes...">${esc(entry.adminNotes || '')}</textarea>
+                <div class="fb-save-indicator" data-act-save-key="${entry.key}"></div>
+              </div>
+            </div>
+          </td>
+        `;
+
+        tbody.appendChild(row);
+        tbody.appendChild(detail);
+
+        // Toggle detail
+        row.addEventListener('click', (e) => {
+          if (e.target.closest('.act-status-select')) return;
+          row.classList.toggle('expanded');
+          detail.classList.toggle('open');
+        });
+      }
+
+      // Status change handlers
+      tbody.querySelectorAll('.act-status-select').forEach(sel => {
+        sel.addEventListener('click', (e) => e.stopPropagation());
+        sel.addEventListener('change', (e) => {
+          const key = e.target.dataset.key;
+          const newStatus = e.target.value;
+          activitiesData[key].status = newStatus;
+          const patch = { status: newStatus, reviewedAt: Date.now() };
+          patchActivity(key, patch);
+          document.getElementById('act-stat-pending').textContent =
+            Object.values(activitiesData).filter(e => e.status === 'pending').length;
+        });
+      });
+
+      // Classic SimCalc toggle
+      tbody.querySelectorAll('.act-classic-toggle').forEach(cb => {
+        cb.addEventListener('click', (e) => e.stopPropagation());
+        cb.addEventListener('change', (e) => {
+          const key = e.target.dataset.key;
+          const isClassic = e.target.checked;
+          activitiesData[key].isClassic = isClassic;
+          patchActivity(key, { isClassic });
+        });
+      });
+
+      // Notes auto-save
+      tbody.querySelectorAll('.act-notes').forEach(ta => {
+        ta.addEventListener('click', (e) => e.stopPropagation());
+        ta.addEventListener('input', (e) => {
+          const key = e.target.dataset.key;
+          const indicator = tbody.querySelector(`[data-act-save-key="${key}"]`);
+          if (indicator) indicator.textContent = 'Saving...';
+
+          clearTimeout(actSaveTimers[key]);
+          actSaveTimers[key] = setTimeout(() => {
+            activitiesData[key].adminNotes = e.target.value;
+            patchActivity(key, { adminNotes: e.target.value }).then(() => {
+              if (indicator) indicator.textContent = 'Saved';
+              setTimeout(() => { if (indicator) indicator.textContent = ''; }, 2000);
+            });
+          }, 800);
+        });
+      });
+
+      // Template download handler
+      tbody.querySelectorAll('[data-action="download-template"]').forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const key = e.target.dataset.key;
+          const entry = activitiesData[key];
+          if (!entry || !entry.templateFile) return;
+          const blob = new Blob([JSON.stringify(entry.templateFile, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = entry.templateFileName || 'template.json';
+          a.click();
+          URL.revokeObjectURL(url);
+        });
+      });
+
+      // Handout download handlers
+      tbody.querySelectorAll('.act-download-link[data-index]').forEach(link => {
+        link.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const key = e.target.dataset.key;
+          const index = e.target.dataset.index;
+          const type = e.target.dataset.type;
+          const url = e.target.dataset.url;
+
+          if (type === 'link' && url) {
+            window.open(url, '_blank');
+          } else {
+            // Fetch file data from separate storage
+            try {
+              const res = await fetch(`${FIREBASE_URL}/activity-handouts/${key}/${index}.json`);
+              const data = await res.json();
+              if (data && data.data) {
+                const a = document.createElement('a');
+                a.href = data.data;
+                a.download = activitiesData[key]?.handouts?.[index]?.name || `handout-${index}`;
+                a.click();
+              }
+            } catch (err) {
+              console.error('Handout download failed:', err);
+            }
+          }
+        });
+      });
+    }
+
+    async function patchActivity(key, data) {
+      try {
+        await fetch(`${FIREBASE_URL}/activities/${key}.json`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+      } catch (err) {
+        console.error('Failed to save activity:', err);
+      }
+    }
+
+    document.getElementById('act-filter-status').addEventListener('change', renderActivitiesTable);
+    document.getElementById('act-filter-category').addEventListener('change', renderActivitiesTable);
+
 
     // --- Utility ---
     function esc(str) {
