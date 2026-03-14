@@ -9,6 +9,7 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'),
         admin: resolve(__dirname, 'admin.html'),
         activities: resolve(__dirname, 'activities.html'),
+        elementary: resolve(__dirname, 'elementary.html'),
       },
     },
   },

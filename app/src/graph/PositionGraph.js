@@ -5,10 +5,11 @@ import { GraphScalePopover } from './GraphScalePopover.js';
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 export class PositionGraph {
-  constructor(container, simulation, bus, linkedActors = []) {
+  constructor(container, simulation, bus, linkedActors = [], options = {}) {
     this.sim = simulation;
     this.bus = bus;
     this.linkedActors = linkedActors;
+    this.readOnly = options.readOnly || false;
     this.renderer = new GraphRenderer(container, {
       xRange: simulation.timeRange,
       yRange: simulation.posRange,
@@ -34,7 +35,7 @@ export class PositionGraph {
 
     // Check if we should show empty-graph hint
     const hasMotion = this.linkedActors.some(a => a.positionFn.points.length >= 2);
-    if (this.linkedActors.length > 0 && !hasMotion) {
+    if (this.linkedActors.length > 0 && !hasMotion && !this.readOnly) {
       this._drawHint(group, "Drag 'Add Point' here");
     }
 

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SimCalc Animal World</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="elementary-style.css">
+</head>
+<body class="elementary-edition">
+  <div class="app-shell">
+    <!-- Actor Palette Bar (top, slim) -->
+    <div class="palette-bar" id="palette-bar"></div>
+
+    <!-- Main Area: Workspace + Right Sidebar -->
+    <div class="main-area">
+      <!-- Workspace (panels live here) -->
+      <div class="workspace" id="workspace"></div>
+
+      <!-- Right-side Tool Sidebar -->
+      <div class="tool-sidebar" id="tool-sidebar"></div>
+    </div>
+
+    <!-- Playback Controls (bottom) -->
+    <div class="controls" id="controls">
+      <button id="btn-reset" data-tooltip="Reset">&#9198;</button>
+      <button id="btn-step-back" data-tooltip="Step Back">&#9664;&#9646;</button>
+      <button id="btn-play" data-tooltip="Play / Pause">&#9654;</button>
+      <button id="btn-step-fwd" data-tooltip="Step Forward">&#9646;&#9654;</button>
+      <span class="time-display">Time: <span id="time-value">0.0</span>s</span>
+      <label class="speed-control">
+        Speed:
+        <input type="range" id="speed-slider" min="0.25" max="3" step="0.25" value="1">
+        <span id="speed-value">1&times;</span>
+      </label>
+      <div class="controls-spacer"></div>
+      <button id="btn-new" class="io-btn" data-tooltip="New">&#128196;</button>
+    </div>
+  </div>
+  <script type="module" src="elementary-main.js"></script>
+</body>
+</html>
