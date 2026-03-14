@@ -9,6 +9,10 @@ export class AnimationWorld {
     this.bus = bus;
     this.linkedActors = linkedActors;
 
+    // Panning state
+    this._panState = null;
+    this._setupPanning();
+
     this._resize();
     this._resizeObserver = new ResizeObserver(() => this._resize());
     this._resizeObserver.observe(canvas.parentElement);
@@ -92,7 +96,9 @@ export class AnimationWorld {
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
     const posStep = this.sim.posRange.max <= 10 ? 1 : (this.sim.posRange.max <= 20 ? 2 : 5);
-    for (let d = this.sim.posRange.min; d <= this.sim.posRange.max; d += posStep) {
+    const dMin = Math.ceil(this.sim.posRange.min / posStep) * posStep;
+    const dMax = Math.floor(this.sim.posRange.max);
+    for (let d = dMin; d <= dMax; d += posStep) {
       const x = this.posToScreenX(d);
       ctx.strokeStyle = '#8B7355';
       ctx.lineWidth = 1;
@@ -156,6 +162,50 @@ export class AnimationWorld {
     ctx.font = 'bold 13px monospace';
     ctx.textAlign = 'left';
     ctx.fillText(`t = ${currentTime.toFixed(1)}s`, 14, 24);
+  }
+
+  // ── Panning (drag to shift position 0 left/right) ────────
+
+  _setupPanning() {
+    const canvas = this.canvas;
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button !== 0 || e.ctrlKey || e.shiftKey) return;
+      this._panState = {
+        startX: e.clientX,
+        startMin: this.sim.posRange.min,
+        startMax: this.sim.posRange.max,
+      };
+      canvas.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!this._panState) {
+        canvas.style.cursor = 'grab';
+        return;
+      }
+      const dx = e.clientX - this._panState.startX;
+      const trackW = this.displayWidth - this.trackPadding.left - this.trackPadding.right;
+      const span = this._panState.startMax - this._panState.startMin;
+      // Dragging right = shifting view right = decreasing position values shown
+      const dataDx = -(dx / trackW) * span;
+
+      this.sim.posRange.min = this._panState.startMin + dataDx;
+      this.sim.posRange.max = this._panState.startMax + dataDx;
+      this._resize();
+      this.bus.emit('posrange:changed', { posRange: this.sim.posRange });
+    });
+
+    const endPan = () => {
+      if (!this._panState) return;
+      this._panState = null;
+      canvas.style.cursor = 'grab';
+    };
+    canvas.addEventListener('mouseup', endPan);
+    canvas.addEventListener('mouseleave', endPan);
+
+    canvas.style.cursor = 'grab';
   }
 
   redraw() {
