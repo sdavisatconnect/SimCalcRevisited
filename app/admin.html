@@ -550,6 +550,7 @@
       });
     });
 
+
     async function loadFeedback() {
       try {
         const res = await fetch(`${FIREBASE_URL}/feedback.json`);
@@ -1024,6 +1025,7 @@
 
     document.getElementById('act-filter-status').addEventListener('change', renderActivitiesTable);
     document.getElementById('act-filter-category').addEventListener('change', renderActivitiesTable);
+
 
     // --- Utility ---
     function esc(str) {

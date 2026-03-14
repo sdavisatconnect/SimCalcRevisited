@@ -14,7 +14,7 @@ export class ComponentPalette {
     this.actorContainer.className = 'actor-palette';
     this.container.appendChild(this.actorContainer);
 
-    // Spacer to push About button to the right
+    // Spacer to push buttons to the right
     const spacer = document.createElement('div');
     spacer.style.flex = '1';
     this.container.appendChild(spacer);
@@ -37,6 +37,7 @@ export class ComponentPalette {
       window.open(base + 'activities.html', '_blank');
     });
     this.container.appendChild(activitiesBtn);
+
 
     // About button
     const aboutBtn = document.createElement('button');

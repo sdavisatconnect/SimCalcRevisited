@@ -689,6 +689,7 @@ bus.on('session:reopen-request', () => {
   dialog.show();
 });
 
+
 // --- Vernier CSV Import ---
 bus.on('import:request', () => {
   if (!sim.worldType) return; // need a world set up first
