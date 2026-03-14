@@ -260,6 +260,11 @@ bus.on('actors:changed', () => {
   workspace.drawFrames(sim.currentTime);
 });
 
+// When the world is panned, redraw world panels (position graph keeps its own range)
+bus.on('posrange:changed', () => {
+  workspace.drawFrames(sim.currentTime);
+});
+
 bus.on('actor:removed', ({ actorId }) => {
   // Unlink from all panels
   for (const panel of workspace.panels) {

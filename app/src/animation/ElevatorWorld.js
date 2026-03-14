@@ -14,6 +14,10 @@ export class ElevatorWorld {
     this.bus = bus;
     this.linkedActors = linkedActors;
 
+    // Panning state
+    this._panState = null;
+    this._setupPanning();
+
     this._resize();
     this._resizeObserver = new ResizeObserver(() => this._resize());
     this._resizeObserver.observe(canvas.parentElement);
@@ -111,7 +115,9 @@ export class ElevatorWorld {
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'right';
 
-    for (let d = posRange.min; d <= posRange.max; d += posStep) {
+    const dMin = Math.ceil(posRange.min);
+    const dMax = Math.floor(posRange.max);
+    for (let d = dMin; d <= dMax; d += posStep) {
       const y = this.posToScreenY(d);
 
       // Floor line across building
@@ -249,6 +255,50 @@ export class ElevatorWorld {
     ctx.font = 'bold 13px monospace';
     ctx.textAlign = 'left';
     ctx.fillText(`t = ${currentTime.toFixed(1)}s`, 14, 24);
+  }
+
+  // ── Panning (drag to shift position 0 up/down) ────────
+
+  _setupPanning() {
+    const canvas = this.canvas;
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button !== 0 || e.ctrlKey || e.shiftKey) return;
+      this._panState = {
+        startY: e.clientY,
+        startMin: this.sim.posRange.min,
+        startMax: this.sim.posRange.max,
+      };
+      canvas.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!this._panState) {
+        canvas.style.cursor = 'grab';
+        return;
+      }
+      const dy = e.clientY - this._panState.startY;
+      const areaH = this.buildingBottom - this.buildingTop;
+      const span = this._panState.startMax - this._panState.startMin;
+      // Dragging down = shifting view down = increasing position values shown
+      const dataDy = (dy / areaH) * span;
+
+      this.sim.posRange.min = this._panState.startMin + dataDy;
+      this.sim.posRange.max = this._panState.startMax + dataDy;
+      this._resize();
+      this.bus.emit('posrange:changed', { posRange: this.sim.posRange });
+    });
+
+    const endPan = () => {
+      if (!this._panState) return;
+      this._panState = null;
+      canvas.style.cursor = 'grab';
+    };
+    canvas.addEventListener('mouseup', endPan);
+    canvas.addEventListener('mouseleave', endPan);
+
+    canvas.style.cursor = 'grab';
   }
 
   redraw() {
