@@ -196,14 +196,14 @@ btnContainer.style.cssText = 'display:flex; gap:8px; padding:4px 12px;';
 
 const howToBtn = document.createElement('button');
 howToBtn.className = 'elementary-secondary-btn';
-howToBtn.style.cssText = 'font-size:12px; padding:4px 12px; border-color:rgba(255,255,255,0.5); color:#fff;';
+howToBtn.style.cssText = 'font-size:12px; padding:4px 12px; border-color:rgba(255,255,255,0.5); color:#fff; background:transparent;';
 howToBtn.textContent = 'How To';
 howToBtn.addEventListener('click', () => bus.emit('howto:show'));
 btnContainer.appendChild(howToBtn);
 
 const aboutBtn = document.createElement('button');
 aboutBtn.className = 'elementary-secondary-btn';
-aboutBtn.style.cssText = 'font-size:12px; padding:4px 12px; border-color:rgba(255,255,255,0.5); color:#fff;';
+aboutBtn.style.cssText = 'font-size:12px; padding:4px 12px; border-color:rgba(255,255,255,0.5); color:#fff; background:transparent;';
 aboutBtn.textContent = 'About';
 aboutBtn.addEventListener('click', () => bus.emit('about:show'));
 btnContainer.appendChild(aboutBtn);
