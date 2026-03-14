@@ -23,6 +23,15 @@ export function drawAnimalCharacter(ctx, x, groundY, color, name, scale = 1, mot
 
   const drawFn = _animalDrawers[animalType] || _animalDrawers.puppy;
 
+  // Draw wings BEFORE body so they appear behind the animal
+  if (flying) {
+    const headTop = drawFn.headTop(groundY, s);
+    const bodyMidY = headTop + drawFn.headH(s) * 1.5;
+    ctx.save();
+    _drawWings(ctx, x, bodyMidY, s, walkPhase);
+    ctx.restore();
+  }
+
   ctx.save();
 
   if (facing !== 0) {
@@ -37,22 +46,17 @@ export function drawAnimalCharacter(ctx, x, groundY, color, name, scale = 1, mot
     drawFn.front(ctx, x, groundY, color, s, walkPhase);
   }
 
-  // Underwater overlay: fishbowl helmet + bubbles
+  ctx.restore();
+
+  // Fishbowl/bubbles drawn after body so they appear in front (over the head)
   if (underwater) {
     const headTop = drawFn.headTop(groundY, s);
     const headCenterY = headTop + drawFn.headH(s) * 0.5;
+    ctx.save();
     _drawFishbowlHelmet(ctx, x, headCenterY, s);
     _drawBubbles(ctx, x, headTop, s, walkPhase);
+    ctx.restore();
   }
-
-  // Flying overlay: wings (for SeaWorld above water)
-  if (flying) {
-    const headTop = drawFn.headTop(groundY, s);
-    const bodyMidY = headTop + drawFn.headH(s) * 1.5;
-    _drawWings(ctx, x, bodyMidY, s, walkPhase);
-  }
-
-  ctx.restore();
 
   // Name label drawn after restore so it is never mirrored
   const headTop = drawFn.headTop(groundY, s);

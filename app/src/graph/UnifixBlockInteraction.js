@@ -129,20 +129,28 @@ export class UnifixBlockInteraction {
     const currentHeight = model.getBlockCount(col);
 
     let targetRow;
-    if (currentHeight === 0) {
+    if (model.hasConflict(col)) {
+      // Already conflicting — add to existing conflict
+      const conflict = model.getConflicts().get(col);
+      if (sign > 0) conflict.pos++;
+      else conflict.neg++;
+      model.setConflict(col, conflict.pos, conflict.neg);
+      model.rebuildPLF();
+    } else if (currentHeight === 0) {
       targetRow = sign;
+      model.setColumn(col, targetRow);
+      model.rebuildPLF();
     } else if (Math.sign(currentHeight) === sign) {
       targetRow = currentHeight + sign;
+      model.setColumn(col, targetRow);
+      model.rebuildPLF();
     } else {
-      // Opposite side — start a new stack
-      targetRow = sign;
-      // Clear existing opposite-sign blocks first
-      model.setColumn(col, 0);
+      // Opposite side — create conflict instead of clearing
+      const posCount = currentHeight > 0 ? Math.abs(currentHeight) : 1;
+      const negCount = currentHeight < 0 ? Math.abs(currentHeight) : 1;
+      model.setConflict(col, posCount, negCount);
+      model.rebuildPLF();
     }
-
-    // Set column to the new height (targetRow includes all blocks from 0)
-    model.setColumn(col, targetRow);
-    model.rebuildPLF();
 
     this.bus.emit('actor:edited', { actorId: actor.id });
     entry.component.redraw();
@@ -163,15 +171,71 @@ export class UnifixBlockInteraction {
     const currentHeight = model.getBlockCount(col);
 
     if (this._activeTool === 'eraser') {
-      // Eraser mode: remove from clicked block outward
-      model.removeFromColumn(col, row);
-      model.rebuildPLF();
+      // Eraser on conflict block: remove from conflict
+      if (model.hasConflict(col)) {
+        const conflict = model.getConflicts().get(col);
+        if (row > 0) {
+          conflict.pos = Math.max(0, row - 1);
+        } else {
+          conflict.neg = Math.max(0, Math.abs(row) - 1);
+        }
+        if (conflict.pos === 0 && conflict.neg === 0) {
+          model.clearConflict(col);
+        } else if (conflict.pos === 0) {
+          model.clearConflict(col);
+          model.setColumn(col, -conflict.neg);
+        } else if (conflict.neg === 0) {
+          model.clearConflict(col);
+          model.setColumn(col, conflict.pos);
+        } else {
+          model.setConflict(col, conflict.pos, conflict.neg);
+        }
+        model.rebuildPLF();
+      } else {
+        model.removeFromColumn(col, row);
+        model.rebuildPLF();
+      }
       this.bus.emit('actor:edited', { actorId: actor.id });
       entry.component.redraw();
       return;
     }
 
-    // Pointer mode: only allow dragging the topmost block
+    // Pointer mode: allow dragging from conflict columns to resolve them
+    if (model.hasConflict(col)) {
+      const conflict = model.getConflicts().get(col);
+      // Only allow dragging the topmost block on the clicked side
+      if (row > 0 && row !== conflict.pos) return;
+      if (row < 0 && Math.abs(row) !== conflict.neg) return;
+
+      this._dragState = { actor, sourceCol: col, sourceRow: row, entry };
+
+      // Remove one block from the clicked side
+      if (row > 0) {
+        conflict.pos--;
+      } else {
+        conflict.neg--;
+      }
+      // Check if conflict is resolved
+      if (conflict.pos === 0 && conflict.neg === 0) {
+        model.clearConflict(col);
+      } else if (conflict.pos === 0) {
+        model.clearConflict(col);
+        model.setColumn(col, -conflict.neg);
+      } else if (conflict.neg === 0) {
+        model.clearConflict(col);
+        model.setColumn(col, conflict.pos);
+      } else {
+        model.setConflict(col, conflict.pos, conflict.neg);
+      }
+      model.rebuildPLF();
+      entry.component.redraw();
+      entry.component.showGhost(col, row, actor.color);
+      entry.svg.style.cursor = 'grabbing';
+      e.preventDefault();
+      return;
+    }
+
+    // Only allow dragging the topmost block
     if (row !== currentHeight) return;
 
     // Start drag
@@ -226,17 +290,20 @@ export class UnifixBlockInteraction {
     const model = new UnifixBlockModel(actor);
     const currentHeight = model.getBlockCount(col);
 
-    let targetRow;
-    if (currentHeight === 0) {
-      targetRow = sign;
+    if (model.hasConflict(col)) {
+      const conflict = model.getConflicts().get(col);
+      if (sign > 0) conflict.pos++;
+      else conflict.neg++;
+      model.setConflict(col, conflict.pos, conflict.neg);
+    } else if (currentHeight === 0) {
+      model.setColumn(col, sign);
     } else if (Math.sign(currentHeight) === sign) {
-      targetRow = currentHeight + sign;
+      model.setColumn(col, currentHeight + sign);
     } else {
-      targetRow = sign;
-      model.setColumn(col, 0);
+      const posCount = currentHeight > 0 ? Math.abs(currentHeight) : 1;
+      const negCount = currentHeight < 0 ? Math.abs(currentHeight) : 1;
+      model.setConflict(col, posCount, negCount);
     }
-
-    model.setColumn(col, targetRow);
     model.rebuildPLF();
 
     this._dragState = null;
@@ -254,8 +321,22 @@ export class UnifixBlockInteraction {
 
     const { actor, sourceCol, sourceRow } = this._dragState;
     const model = new UnifixBlockModel(actor);
-    // Restore: set source column back to include the dragged block
-    model.setColumn(sourceCol, sourceRow);
+    // Restore: return block to source column
+    const currentHeight = model.getBlockCount(sourceCol);
+    if (model.hasConflict(sourceCol)) {
+      // Re-add to conflict
+      const conflict = model.getConflicts().get(sourceCol);
+      if (sourceRow > 0) conflict.pos++;
+      else conflict.neg++;
+      model.setConflict(sourceCol, conflict.pos, conflict.neg);
+    } else if (currentHeight !== 0 && Math.sign(currentHeight) !== Math.sign(sourceRow)) {
+      // Would create a new conflict
+      const posCount = sourceRow > 0 ? 1 : Math.abs(currentHeight);
+      const negCount = sourceRow < 0 ? 1 : Math.abs(currentHeight);
+      model.setConflict(sourceCol, posCount, negCount);
+    } else {
+      model.setColumn(sourceCol, sourceRow);
+    }
     model.rebuildPLF();
 
     this._dragState = null;

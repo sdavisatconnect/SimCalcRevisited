@@ -3,6 +3,7 @@ import { FrolicWorld } from '../animation/FrolicWorld.js';
 import { SeaWorld } from '../animation/SeaWorld.js';
 import { UnifixVelocityGraph } from '../graph/UnifixVelocityGraph.js';
 import { PositionGraph } from '../graph/PositionGraph.js';
+import { t } from '../i18n/strings.js';
 
 /**
  * Panel factory for the elementary edition.
@@ -81,9 +82,9 @@ export class ElementaryPanelFactory {
 
   _titleFor(type) {
     switch (type) {
-      case 'world': return this.sim.worldType === 'sea' ? 'Sea World' : 'Frolic World';
-      case 'position': return 'Position vs Time';
-      case 'velocity': return 'Velocity vs Time';
+      case 'world': return this.sim.worldType === 'sea' ? t('panelSeaWorld') : t('panelFrolicWorld');
+      case 'position': return t('positionVsTime');
+      case 'velocity': return t('velocityVsTime');
       default: return type;
     }
   }

@@ -1,6 +1,7 @@
 import { GraphRenderer } from './GraphRenderer.js';
 import { GraphScaleInteraction } from './GraphScaleInteraction.js';
 import { GraphScalePopover } from './GraphScalePopover.js';
+import { t } from '../i18n/strings.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -13,8 +14,8 @@ export class PositionGraph {
     this.renderer = new GraphRenderer(container, {
       xRange: simulation.timeRange,
       yRange: simulation.posRange,
-      xLabel: 'Time (s)',
-      yLabel: `Position (${simulation.unitLabel || 'm'})`
+      xLabel: `${t('timeAxis')} (s)`,
+      yLabel: `${t('positionAxis')} (${simulation.unitLabel || 'm'})`
     });
 
     // Scale controls
@@ -103,8 +104,30 @@ export class PositionGraph {
           circle.setAttribute('stroke-width', '2');
           circle.setAttribute('data-actor-id', actor.id);
           circle.setAttribute('data-point-index', i);
+          const title = document.createElementNS(SVG_NS, 'title');
+          title.textContent = `(${p.t.toFixed(1)}, ${p.v.toFixed(1)})`;
+          circle.appendChild(title);
           actorGroup.appendChild(circle);
         });
+      }
+
+      // For read-only graphs (elementary), add hover points at integer times
+      if (isReadOnly && pts.length >= 2) {
+        const tMin = Math.ceil(pts[0].t);
+        const tMax = Math.floor(pts[pts.length - 1].t);
+        for (let ti = tMin; ti <= tMax; ti++) {
+          const pos = actor.positionFn.evaluate(ti);
+          const s = this.renderer.toScreen(ti, pos);
+          const hoverCircle = this.renderer.makeCircle(s.x, s.y, 8, 'hover-point');
+          hoverCircle.setAttribute('fill', 'transparent');
+          hoverCircle.setAttribute('stroke', 'none');
+          hoverCircle.setAttribute('pointer-events', 'all');
+          hoverCircle.style.cursor = 'crosshair';
+          const title = document.createElementNS(SVG_NS, 'title');
+          title.textContent = `(${ti.toFixed(0)}, ${pos.toFixed(1)})`;
+          hoverCircle.appendChild(title);
+          actorGroup.appendChild(hoverCircle);
+        }
       }
 
       group.appendChild(actorGroup);

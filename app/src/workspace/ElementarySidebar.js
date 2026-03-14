@@ -2,19 +2,23 @@
  * Simplified sidebar for elementary edition.
  * Contains: velocity block drag tool, eraser mode, clear all, tips.
  */
+import { t, getLanguage } from '../i18n/strings.js';
+
 export class ElementarySidebar {
   constructor(containerEl, bus) {
     this.el = containerEl;
     this.bus = bus;
     this.activeTool = 'pointer'; // 'pointer' or 'eraser'
     this._build();
+
+    bus.on('language:changed', () => this._build());
   }
 
   _build() {
     this.el.innerHTML = '';
 
     // --- Velocity section ---
-    const blocksSection = this._createSection('Velocity');
+    const blocksSection = this._createSection(t('velocitySection'));
 
     // Velocity block draggable tool
     const cubeTool = document.createElement('div');
@@ -22,18 +26,19 @@ export class ElementarySidebar {
     cubeTool.draggable = true;
 
     const cubeLabel = document.createElement('span');
-    cubeLabel.innerHTML = '<div class="elementary-cube-icon"></div> Velocity Block';
+    cubeLabel.innerHTML = '<div class="elementary-cube-icon"></div> ' + t('velocityBlock');
     cubeTool.appendChild(cubeLabel);
 
     // Pronunciation button
     const speakBtn = document.createElement('button');
     speakBtn.className = 'velocity-speak-btn';
     speakBtn.textContent = '🔊';
-    speakBtn.title = 'Hear "velocity"';
+    speakBtn.title = t('hearVelocity');
     speakBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       e.preventDefault();
-      const utterance = new SpeechSynthesisUtterance('velocity');
+      const utterance = new SpeechSynthesisUtterance(t('velocityWord'));
+      utterance.lang = getLanguage() === 'es' ? 'es-ES' : 'en-US';
       utterance.rate = 0.8;
       speechSynthesis.speak(utterance);
     });
@@ -56,12 +61,12 @@ export class ElementarySidebar {
     this.el.appendChild(blocksSection);
 
     // --- Tools section ---
-    const toolsSection = this._createSection('Tools');
+    const toolsSection = this._createSection(t('toolsSection'));
 
     // Pointer button
     const pointerBtn = document.createElement('button');
-    pointerBtn.className = 'sidebar-tool-btn active';
-    pointerBtn.textContent = '👆 Select';
+    pointerBtn.className = 'sidebar-tool-btn' + (this.activeTool === 'pointer' ? ' active' : '');
+    pointerBtn.textContent = t('selectTool');
     pointerBtn.addEventListener('click', () => {
       this.setActiveTool('pointer');
     });
@@ -70,8 +75,8 @@ export class ElementarySidebar {
 
     // Eraser button
     const eraserBtn = document.createElement('button');
-    eraserBtn.className = 'sidebar-tool-btn';
-    eraserBtn.textContent = '🧹 Eraser';
+    eraserBtn.className = 'sidebar-tool-btn' + (this.activeTool === 'eraser' ? ' active' : '');
+    eraserBtn.textContent = t('eraserTool');
     eraserBtn.addEventListener('click', () => {
       this.setActiveTool('eraser');
     });
@@ -81,7 +86,7 @@ export class ElementarySidebar {
     // Clear All button
     const clearBtn = document.createElement('button');
     clearBtn.className = 'elementary-clear-btn';
-    clearBtn.textContent = '✕ Clear All';
+    clearBtn.textContent = t('clearAll');
     clearBtn.addEventListener('click', () => {
       this.bus.emit('blocks:clear-all');
     });
@@ -89,14 +94,12 @@ export class ElementarySidebar {
     this.el.appendChild(toolsSection);
 
     // --- Tips section ---
-    const tipsSection = this._createSection('Tips');
+    const tipsSection = this._createSection(t('tipsSection'));
     const tips = document.createElement('div');
     tips.className = 'elementary-tips';
     tips.innerHTML = `
-      <p>🧱 Drag velocity blocks onto the graph!</p>
-      <p>📈 Stack higher to go faster!</p>
-      <p>⬇️ Blocks below the line go backward!</p>
-      <p>▶️ Press Play to watch!</p>
+      <p>${t('tip1')}</p>
+      <p>${t('tip4')}</p>
     `;
     tipsSection.appendChild(tips);
     this.el.appendChild(tipsSection);

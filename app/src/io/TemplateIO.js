@@ -26,6 +26,7 @@ export class TemplateIO {
         id: actor.id,
         name: actor.name,
         color: actor.color,
+        animalType: actor.animalType || null,
         positionPoints: actor.positionFn.points.map(p => ({ t: p.t, v: p.v })),
         accelerations: actor.positionFn.accelerations || [],
       })),
@@ -155,6 +156,7 @@ export class TemplateIO {
         id: actorData.id,
         name: actorData.name,
         color: actorData.color,
+        animalType: actorData.animalType || null,
         positionFunction: plf,
       });
       sim.addActor(actor);

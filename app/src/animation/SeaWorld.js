@@ -224,13 +224,13 @@ export class SeaWorld {
       const underwater = pos < 0;
       const flying = pos > 0;
 
-      // Velocity-based motion: moving = side-facing walk, stopped = front-facing idle
+      // SeaWorld: always front-facing (vertical motion, not horizontal)
+      // Use walkPhase for swim/bob animation but no left/right facing
       const vel = actor.getVelocityAt ? actor.getVelocityAt(currentTime) : 0;
       let motion = null;
       if (Math.abs(vel) > 0.1) {
-        const facing = vel > 0 ? 1 : -1;
         const walkPhase = (currentTime * 3) % 1;
-        motion = { facing, walkPhase };
+        motion = { facing: 0, walkPhase };
       }
 
       // Scale animals similarly to ElevatorWorld

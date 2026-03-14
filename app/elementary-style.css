@@ -458,6 +458,30 @@
   border-radius: 4px;
 }
 
+.elementary-add-actor-btn {
+  background: rgba(255, 255, 255, 0.25) !important;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 2px 10px;
+  user-select: none;
+}
+.elementary-add-actor-btn:hover {
+  background: rgba(255, 255, 255, 0.45) !important;
+}
+
+.add-actor-popup {
+  position: fixed;
+  top: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  padding: 16px;
+  z-index: 1000;
+  width: 260px;
+}
+
 /* --- Override graph styles for lighter theme --- */
 .elementary-edition .panel-content svg {
   background: #fff;

@@ -1,5 +1,6 @@
 import { GraphRenderer } from './GraphRenderer.js';
 import { UnifixBlockModel } from './UnifixBlockModel.js';
+import { t } from '../i18n/strings.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -23,8 +24,8 @@ export class UnifixVelocityGraph {
     this.renderer = new GraphRenderer(container, {
       xRange: { min: 0, max: simulation.timeRange.max || 10 },
       yRange,
-      xLabel: 'Time (s)',
-      yLabel: `Velocity (${simulation.velocityUnitLabel})`,
+      xLabel: `${t('timeAxis')} (s)`,
+      yLabel: `${t('velocityAxis')} (${simulation.velocityUnitLabel})`,
       yMaxTicks: 10,
       squareUnits: true
     });
@@ -59,7 +60,7 @@ export class UnifixVelocityGraph {
     });
 
     if (this.linkedActors.length > 0 && !hasBlocks) {
-      this._drawHint(group, 'Drag blocks here to set velocity');
+      this._drawHint(group, t('dragHint'));
     }
 
     for (const actor of this.linkedActors) {
@@ -73,6 +74,12 @@ export class UnifixVelocityGraph {
 
       for (const [t, vel] of columns) {
         this._drawColumn(actorGroup, t, vel, actor.color, isReadOnly);
+      }
+
+      // Draw conflicting columns in red with X overlay
+      const conflicts = model.getConflicts();
+      for (const [t, conflict] of conflicts) {
+        this._drawConflictColumn(actorGroup, t, conflict.pos, conflict.neg);
       }
 
       group.appendChild(actorGroup);
@@ -96,10 +103,46 @@ export class UnifixVelocityGraph {
   }
 
   /**
+   * Draw a conflicting column: both positive and negative blocks in red with X overlay.
+   */
+  _drawConflictColumn(parent, col, posCount, negCount) {
+    const conflictColor = '#cc3333';
+
+    // Draw positive blocks
+    for (let i = 1; i <= posCount; i++) {
+      this._drawBlock(parent, col, i, conflictColor, false, true);
+    }
+    // Draw negative blocks
+    for (let i = 1; i <= negCount; i++) {
+      this._drawBlock(parent, col, -i, conflictColor, false, true);
+    }
+
+    // Draw X overlay across the full column span
+    const topY = posCount;
+    const bottomY = -negCount;
+    const topLeft = this.renderer.toScreen(col, topY);
+    const bottomRight = this.renderer.toScreen(col + 1, bottomY);
+
+    const x1Line = this.renderer.makeLine(topLeft.x, topLeft.y, bottomRight.x, bottomRight.y, 'conflict-x');
+    x1Line.setAttribute('stroke', '#fff');
+    x1Line.setAttribute('stroke-width', '3');
+    x1Line.setAttribute('opacity', '0.8');
+    x1Line.setAttribute('pointer-events', 'none');
+    parent.appendChild(x1Line);
+
+    const x2Line = this.renderer.makeLine(bottomRight.x, topLeft.y, topLeft.x, bottomRight.y, 'conflict-x');
+    x2Line.setAttribute('stroke', '#fff');
+    x2Line.setAttribute('stroke-width', '3');
+    x2Line.setAttribute('opacity', '0.8');
+    x2Line.setAttribute('pointer-events', 'none');
+    parent.appendChild(x2Line);
+  }
+
+  /**
    * Draw a single unifix cube block at grid position (col, row).
    * Block spans [col, col+1] x [row-1, row] (positive) or [row, row+1] (negative).
    */
-  _drawBlock(parent, col, row, color, isReadOnly) {
+  _drawBlock(parent, col, row, color, isReadOnly, isConflict = false) {
     // Determine data-space rectangle
     let yTop, yBottom;
     if (row > 0) {
@@ -172,6 +215,32 @@ export class UnifixVelocityGraph {
     rightEdge.setAttribute('stroke', darker20);
     rightEdge.setAttribute('stroke-width', bevelWidth);
     blockGroup.appendChild(rightEdge);
+
+    // 1 / ⁻1 label
+    const fontSize = Math.min(w, h) * 0.45;
+    const label = document.createElementNS(SVG_NS, 'text');
+    label.setAttribute('x', x + w / 2);
+    label.setAttribute('y', y + h / 2 + fontSize * 0.35);
+    label.setAttribute('text-anchor', 'middle');
+    label.setAttribute('fill', '#fff');
+    label.setAttribute('font-size', fontSize);
+    label.setAttribute('font-weight', 'bold');
+    label.setAttribute('pointer-events', 'none');
+    if (row > 0) {
+      label.textContent = '1';
+    } else {
+      // Superscript-style negative sign: smaller and raised
+      const negSign = document.createElementNS(SVG_NS, 'tspan');
+      negSign.setAttribute('font-size', fontSize * 0.6);
+      negSign.setAttribute('dy', -fontSize * 0.3);
+      negSign.textContent = '\u2212';
+      label.appendChild(negSign);
+      const numPart = document.createElementNS(SVG_NS, 'tspan');
+      numPart.setAttribute('dy', fontSize * 0.3);
+      numPart.textContent = '1';
+      label.appendChild(numPart);
+    }
+    blockGroup.appendChild(label);
 
     parent.appendChild(blockGroup);
   }

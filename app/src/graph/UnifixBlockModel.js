@@ -71,12 +71,60 @@ export class UnifixBlockModel {
     return { min, max: Math.max(max, min + 1) };
   }
 
+  // ---- Conflict tracking ----
+
+  /**
+   * Conflicts are stored on the actor object as a Map<int, {pos, neg}>
+   * so they persist across UnifixBlockModel instantiations.
+   */
+  _getConflicts() {
+    if (!this.actor._blockConflicts) this.actor._blockConflicts = new Map();
+    return this.actor._blockConflicts;
+  }
+
+  /**
+   * Mark a column as conflicting (has blocks on both sides of axis).
+   * The PLF treats this column as velocity=0 (blocks cancel out).
+   */
+  setConflict(t, posCount, negCount) {
+    t = Math.round(t);
+    this._getConflicts().set(t, { pos: posCount, neg: negCount });
+    // PLF velocity for this column = 0 (cancel out)
+    this._mutateColumns((cols) => {
+      cols.delete(t);
+    });
+  }
+
+  /**
+   * Clear conflict for a column (e.g. when student resolves it).
+   */
+  clearConflict(t) {
+    t = Math.round(t);
+    this._getConflicts().delete(t);
+  }
+
+  /**
+   * Check if a column has a conflict.
+   */
+  hasConflict(t) {
+    return this._getConflicts().has(Math.round(t));
+  }
+
+  /**
+   * Get all conflicts: Map<int, {pos, neg}>.
+   */
+  getConflicts() {
+    return this._getConflicts();
+  }
+
   // ---- Mutators ----
 
   /**
    * Set the velocity for column [t, t+1].  0 removes the column.
+   * Also clears any conflict on this column.
    */
   setColumn(t, velocity) {
+    this.clearConflict(t);
     t = Math.round(t);
     velocity = Math.round(velocity);
     this._mutateColumns((cols) => {
@@ -132,6 +180,7 @@ export class UnifixBlockModel {
    * Clear all blocks (reset to a single point at origin).
    */
   clearAll() {
+    this._getConflicts().clear();
     this.actor.positionFn = new PiecewiseLinearFunction(
       [{ t: 0, v: this.actor.positionFn.points[0].v }]
     );

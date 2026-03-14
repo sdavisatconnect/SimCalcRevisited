@@ -31,6 +31,7 @@ import { RoomCodeBar } from './src/connectivity/RoomCodeBar.js';
 import { SessionHistoryDialog } from './src/connectivity/SessionHistoryDialog.js';
 import { StudentResultsOverlay } from './src/connectivity/StudentResultsOverlay.js';
 import { ElementaryHowTo } from './src/workspace/ElementaryHowTo.js';
+import { t, getLanguage, setLanguage } from './src/i18n/strings.js';
 
 // --- Setup ---
 const bus = new EventBus();
@@ -197,14 +198,14 @@ btnContainer.style.cssText = 'display:flex; gap:8px; padding:4px 12px;';
 const howToBtn = document.createElement('button');
 howToBtn.className = 'elementary-secondary-btn';
 howToBtn.style.cssText = 'font-size:12px; padding:4px 12px; border-color:rgba(255,255,255,0.5); color:#fff; background:transparent;';
-howToBtn.textContent = 'How To';
+howToBtn.textContent = t('howTo');
 howToBtn.addEventListener('click', () => bus.emit('howto:show'));
 btnContainer.appendChild(howToBtn);
 
 const aboutBtn = document.createElement('button');
 aboutBtn.className = 'elementary-secondary-btn';
 aboutBtn.style.cssText = 'font-size:12px; padding:4px 12px; border-color:rgba(255,255,255,0.5); color:#fff; background:transparent;';
-aboutBtn.textContent = 'About';
+aboutBtn.textContent = t('about');
 aboutBtn.addEventListener('click', () => bus.emit('about:show'));
 btnContainer.appendChild(aboutBtn);
 
@@ -249,6 +250,12 @@ bus.on('actor:edited', ({ actorId }) => {
 });
 
 bus.on('actors:changed', () => {
+  // Auto-link any new actors to all existing panels
+  for (const actor of sim.actors) {
+    for (const panel of workspace.panels) {
+      panel.linkActor(actor); // deduplicates internally
+    }
+  }
   workspace.redrawAll();
   workspace.drawFrames(sim.currentTime);
 });
@@ -284,10 +291,80 @@ bus.on('blocks:clear-all', () => {
   }
 });
 
-// --- New button ---
+// --- Save / Load / New buttons ---
+document.getElementById('btn-save').addEventListener('click', () => {
+  TemplateIO.saveToFile(sim, workspace);
+});
+
+document.getElementById('btn-load').addEventListener('click', async () => {
+  const data = await TemplateIO.loadFromFile();
+  if (!data) return;
+
+  // Dismiss world selector overlay if showing
+  const overlay = workspaceEl.querySelector('.world-selector-overlay');
+  if (overlay) overlay.remove();
+
+  TemplateIO.reconstruct(data, sim, workspace, panelFactory, blockInteraction, bus, createPanel);
+
+  // Update speed slider to match loaded state
+  speedSlider.value = sim.playbackSpeed;
+  speedValue.textContent = sim.playbackSpeed + '\u00D7';
+
+  // Show sidebar if it was hidden (from selector phase)
+  sidebarEl.style.display = '';
+});
+
 document.getElementById('btn-new').addEventListener('click', () => {
   resetToBlank();
 });
+
+// --- Language toggle ---
+const langBtn = document.getElementById('btn-lang');
+function updateLangButton() {
+  langBtn.textContent = getLanguage().toUpperCase();
+}
+updateLangButton();
+
+langBtn.addEventListener('click', () => {
+  const next = getLanguage() === 'en' ? 'es' : 'en';
+  setLanguage(next);
+  updateLangButton();
+
+  // Update controls bar labels
+  _updateControlsLabels();
+
+  // Update palette bar buttons
+  howToBtn.textContent = t('howTo');
+  aboutBtn.textContent = t('about');
+
+  // Notify all components to re-render
+  bus.emit('language:changed');
+});
+
+// Update translatable labels in the controls bar (HTML-defined elements)
+function _updateControlsLabels() {
+  document.getElementById('btn-reset').dataset.tooltip = t('reset');
+  document.getElementById('btn-step-back').dataset.tooltip = t('stepBack');
+  document.getElementById('btn-play').dataset.tooltip = t('playPause');
+  document.getElementById('btn-step-fwd').dataset.tooltip = t('stepForward');
+  document.getElementById('btn-save').dataset.tooltip = t('save');
+  document.getElementById('btn-load').dataset.tooltip = t('open');
+  document.getElementById('btn-new').dataset.tooltip = t('newBtn');
+
+  // Time and Speed labels
+  const timeDisplay = document.querySelector('.time-display');
+  if (timeDisplay) {
+    const timeVal = document.getElementById('time-value');
+    timeDisplay.firstChild.textContent = t('time') + ' ';
+  }
+  const speedLabel = document.querySelector('.speed-control');
+  if (speedLabel) {
+    speedLabel.firstChild.textContent = t('speed') + ' ';
+  }
+}
+
+// Set initial labels from current language
+_updateControlsLabels();
 
 // --- Broadcast (teacher) ---
 // Broadcast button dynamically created — not in static HTML
