@@ -13,7 +13,7 @@ export class PositionGraph {
     this.readOnly = options.readOnly || false;
     this.renderer = new GraphRenderer(container, {
       xRange: simulation.timeRange,
-      yRange: simulation.posRange,
+      yRange: { ...simulation.posRange },
       xLabel: `${t('timeAxis')} (s)`,
       yLabel: `${t('positionAxis')} (${simulation.unitLabel || 'm'})`
     });
@@ -112,7 +112,7 @@ export class PositionGraph {
       }
 
       // For read-only graphs (elementary), add hover points at integer times
-      if (isReadOnly && pts.length >= 2) {
+      if (this.readOnly && pts.length >= 2) {
         const tMin = Math.ceil(pts[0].t);
         const tMax = Math.floor(pts[pts.length - 1].t);
         for (let ti = tMin; ti <= tMax; ti++) {

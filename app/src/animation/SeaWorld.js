@@ -8,7 +8,7 @@ import { mapRange } from '../utils/MathUtils.js';
  * Animals float/swim freely in their column with no elevator shaft.
  */
 export class SeaWorld {
-  constructor(canvas, simulation, bus, linkedActors = []) {
+  constructor(canvas, simulation, bus, linkedActors = [], options = {}) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.sim = simulation;

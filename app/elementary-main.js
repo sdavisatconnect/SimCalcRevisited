@@ -260,18 +260,11 @@ bus.on('actors:changed', () => {
   workspace.drawFrames(sim.currentTime);
 });
 
-// When the world is panned, update the position graph's y-range
+// When the world is panned, redraw world panels only.
+// Position graph keeps its own fixed range — panning the world is just for
+// looking around, it shouldn't shift the graph axis numbers.
 bus.on('posrange:changed', () => {
-  for (const panel of workspace.panels) {
-    if (panel.component && panel.component.graphRenderer) {
-      const renderer = panel.component.graphRenderer;
-      // Only update position graphs (yLabel contains "Position")
-      if (renderer.yLabel && renderer.yLabel.includes('Position')) {
-        renderer.setRanges(null, { ...sim.posRange });
-        if (panel.component.redraw) panel.component.redraw();
-      }
-    }
-  }
+  workspace.drawFrames(sim.currentTime);
 });
 
 bus.on('actor:removed', ({ actorId }) => {

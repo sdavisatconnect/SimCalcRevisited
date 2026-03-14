@@ -7,7 +7,7 @@ import { mapRange } from '../utils/MathUtils.js';
  * Features a nature/field theme with baby animal characters walking along a path.
  */
 export class FrolicWorld {
-  constructor(canvas, simulation, bus, linkedActors = []) {
+  constructor(canvas, simulation, bus, linkedActors = [], options = {}) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.sim = simulation;
