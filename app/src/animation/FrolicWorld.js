@@ -184,12 +184,14 @@ export class FrolicWorld {
       ctx.fill();
     }
 
-    // ── Distance markers along the path ──
+    // ── Distance markers along the path (always at integer positions) ──
     ctx.fillStyle = '#555';
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'center';
     const posStep = this.sim.posRange.max <= 10 ? 1 : (this.sim.posRange.max <= 20 ? 2 : 5);
-    for (let d = this.sim.posRange.min; d <= this.sim.posRange.max; d += posStep) {
+    const dMin = Math.ceil(this.sim.posRange.min / posStep) * posStep;
+    const dMax = Math.floor(this.sim.posRange.max);
+    for (let d = dMin; d <= dMax; d += posStep) {
       const x = this.posToScreenX(d);
       // Tick mark
       ctx.strokeStyle = '#a08555';

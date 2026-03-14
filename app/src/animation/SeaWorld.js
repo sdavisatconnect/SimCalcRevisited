@@ -184,11 +184,12 @@ export class SeaWorld {
       this._drawDock(ctx, surfaceOnScreen);
     }
 
-    // ── Distance markers on left side ──
+    // ── Distance markers on left side (always at integer positions) ──
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'right';
-    const posStep = 1;
-    for (let d = posRange.min; d <= posRange.max; d += posStep) {
+    const dMin = Math.ceil(posRange.min);
+    const dMax = Math.floor(posRange.max);
+    for (let d = dMin; d <= dMax; d++) {
       const y = this.posToScreenY(d);
 
       // Tick
