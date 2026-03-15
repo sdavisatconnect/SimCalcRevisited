@@ -10,9 +10,16 @@
  *  - Results display configuration (overlaid/tiled graph type, reference overlay)
  */
 export class AuthorConfigPanel {
-  constructor(containerEl, bus) {
+  /**
+   * @param {HTMLElement} containerEl
+   * @param {EventBus} bus
+   * @param {object} [options]
+   * @param {boolean} [options.hideAcceleration] - Hide acceleration checkboxes (for elementary)
+   */
+  constructor(containerEl, bus, options = {}) {
     this.container = containerEl;
     this.bus = bus;
+    this.hideAcceleration = options.hideAcceleration || false;
     this._build();
   }
 
@@ -43,12 +50,15 @@ export class AuthorConfigPanel {
 
     // --- Student Sees ---
     scrollArea.appendChild(this._sectionHeader('Student Sees'));
-    const panelTypes = [
+    let panelTypes = [
       { key: 'world', label: 'World' },
       { key: 'position', label: 'Position (P/T)' },
       { key: 'velocity', label: 'Velocity (V/T)' },
       { key: 'acceleration', label: 'Acceleration (A/T)' },
     ];
+    if (this.hideAcceleration) {
+      panelTypes = panelTypes.filter(p => p.key !== 'acceleration');
+    }
     this.visibleChecks = {};
     const visGroup = document.createElement('div');
     visGroup.className = 'author-config-check-group';
@@ -61,11 +71,14 @@ export class AuthorConfigPanel {
 
     // --- Student Can Edit ---
     scrollArea.appendChild(this._sectionHeader('Student Can Edit'));
-    const editableTypes = [
+    let editableTypes = [
       { key: 'position', label: 'Position (P/T)' },
       { key: 'velocity', label: 'Velocity (V/T)' },
       { key: 'acceleration', label: 'Acceleration (A/T)' },
     ];
+    if (this.hideAcceleration) {
+      editableTypes = editableTypes.filter(p => p.key !== 'acceleration');
+    }
     this.editableChecks = {};
     const editGroup = document.createElement('div');
     editGroup.className = 'author-config-check-group';

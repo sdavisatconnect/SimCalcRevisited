@@ -3,94 +3,73 @@ import { Simulation } from '../model/Simulation.js';
 import { Actor } from '../model/Actor.js';
 import { PiecewiseLinearFunction } from '../model/PiecewiseLinearFunction.js';
 import { Workspace } from '../workspace/Workspace.js';
-import { PanelFactory } from '../workspace/PanelFactory.js';
-import { ActorPalette } from '../workspace/ActorPalette.js';
+import { ElementaryPanelFactory } from '../workspace/ElementaryPanelFactory.js';
+import { ElementaryActorPalette } from '../workspace/ElementaryActorPalette.js';
 import { ToolSidebar } from '../workspace/ToolSidebar.js';
 import { GraphInteractionManager } from '../graph/GraphInteraction.js';
+import { UnifixBlockInteraction } from '../graph/UnifixBlockInteraction.js';
 import { TimeController } from '../controls/TimeController.js';
-import { PlaybackControls } from '../controls/PlaybackControls.js';
 import { AuthorConfigPanel } from './AuthorConfigPanel.js';
 import { ChallengeTemplateIO } from './ChallengeTemplateIO.js';
+import { UnifixBlockModel } from '../graph/UnifixBlockModel.js';
+
+const ANIMAL_TYPES = [
+  'puppy', 'kitten', 'bunny', 'duck', 'penguin',
+  'elephant', 'horse', 'cow', 'frog', 'bear',
+];
 
 /**
- * Full-screen Challenge Author Mode.
+ * Full-screen Challenge Author Mode for the Elementary edition.
  *
- * Creates an isolated workspace (own EventBus, Simulation, Workspace,
- * PanelFactory, GraphInteractionManager) for the teacher to build the
- * seed scenario. A right-column config panel lets the teacher set
- * visibility, editability, instructions, and results display options.
- *
- * Entry: WorldSelector "Author a Challenge" button.
- * Exit: Cancel button or after broadcasting.
+ * Same workflow as ChallengeAuthorMode but uses elementary graphics:
+ * baby animals in the world, unifix blocks for velocity, no acceleration.
  */
-export class ChallengeAuthorMode {
-  /**
-   * @param {HTMLElement} appShellEl - The .app-shell container
-   * @param {object} callbacks
-   *   { onBroadcast(challengeData), onPractice(challengeData, count), onExit() }
-   */
+export class ElementaryAuthorMode {
   constructor(appShellEl, callbacks) {
     this.appShell = appShellEl;
     this.callbacks = callbacks;
 
-    // Isolated instances for the author workspace
     this.bus = new EventBus();
     this.sim = new Simulation();
+    this.sim.edition = 'elementary';
 
-    // DOM
     this.rootEl = null;
     this.workspaceEl = null;
     this.workspace = null;
     this.panelFactory = null;
     this.interactionMgr = null;
+    this.blockInteraction = null;
     this.actorPalette = null;
     this.toolSidebar = null;
     this.configPanel = null;
     this.timeController = null;
-    this.playbackControls = null;
 
-    // Track which actors are reference vs student template
     this._referenceActorIds = new Set();
     this._studentActorId = null;
+    this._animalIndex = 0;
   }
 
-  /**
-   * Enter author mode with a specific world type.
-   * @param {'horizontal'|'vertical'} worldType
-   */
   enter(worldType) {
-    // Hide the main app UI
     for (const child of this.appShell.children) {
       child._authorHidden = true;
       child.style.display = 'none';
     }
 
-    // Set up isolated simulation
-    this.sim.worldType = worldType;
-
-    // Build the author UI
+    this.sim.worldType = worldType || 'frolic';
     this._buildUI();
-
-    // Create default actors: one reference + one student template
     this._createDefaultActors();
-
-    // Create default panels: world + position + velocity
     this._createDefaultPanels();
   }
 
-  /**
-   * Enter author mode with a pre-loaded challenge template.
-   * @param {object} challengeData - v2 challenge data
-   */
   enterWithChallenge(challengeData) {
     for (const child of this.appShell.children) {
       child._authorHidden = true;
       child.style.display = 'none';
     }
 
-    // Restore simulation from seed
     const seed = challengeData.seed;
     this.sim.worldType = seed.worldType;
+    this.sim.edition = 'elementary';
     this.sim.timeRange = { ...seed.timeRange };
     this.sim.posRange = { ...seed.posRange };
     this.sim.velRange = { ...seed.velRange };
@@ -99,7 +78,6 @@ export class ChallengeAuthorMode {
 
     this._buildUI();
 
-    // Recreate reference actors
     for (const ad of challengeData.referenceActors) {
       const plf = new PiecewiseLinearFunction(
         ad.positionPoints.map(p => ({ t: p.t, v: p.v })),
@@ -108,13 +86,12 @@ export class ChallengeAuthorMode {
       const actor = new Actor({
         id: ad.id, name: ad.name, color: ad.color,
         positionFunction: plf,
-        // NOT readOnly in author mode — teacher needs to edit reference actors
+        animalType: ad.animalType || this._nextAnimalType(),
       });
       this.sim.addActor(actor);
       this._referenceActorIds.add(actor.id);
     }
 
-    // Recreate student template actor
     const st = challengeData.studentActorTemplate;
     const stPlf = new PiecewiseLinearFunction(
       st.positionPoints.map(p => ({ t: p.t, v: p.v })),
@@ -125,42 +102,38 @@ export class ChallengeAuthorMode {
       name: 'Student',
       color: '#2ecc71',
       positionFunction: stPlf,
+      animalType: st.animalType || 'kitten',
     });
     this.sim.addActor(studentActor);
     this._studentActorId = studentActor.id;
 
     this.bus.emit('actors:changed');
 
-    // Create panels for all visible panel types
     const visible = new Set(challengeData.studentConfig.visiblePanels || ['world', 'position']);
-    this._createDefaultPanels(visible);
+    this._createDefaultPanels(visible, challengeData.panelActorLinkage);
 
-    // Restore config panel values
     if (this.configPanel) {
       this.configPanel.loadFromChallenge(challengeData);
     }
   }
 
-  exit() {
-    // Stop playback
+  exit({ skipOnExit = false } = {}) {
     if (this.timeController) this.timeController.stop();
 
-    // Clean up workspace panels
     if (this.workspace) {
       const panelsCopy = [...this.workspace.panels];
       for (const panel of panelsCopy) {
-        this.interactionMgr.unregisterGraph(panel.id);
+        if (this.interactionMgr) this.interactionMgr.unregisterGraph(panel.id);
+        if (this.blockInteraction) this.blockInteraction.unregisterGraph(panel.id);
         this.workspace.removePanel(panel);
       }
     }
 
-    // Remove author UI
     if (this.rootEl) {
       this.rootEl.remove();
       this.rootEl = null;
     }
 
-    // Restore the main app UI
     for (const child of this.appShell.children) {
       if (child._authorHidden) {
         child.style.display = '';
@@ -168,7 +141,13 @@ export class ChallengeAuthorMode {
       }
     }
 
-    if (this.callbacks.onExit) this.callbacks.onExit();
+    if (!skipOnExit && this.callbacks.onExit) this.callbacks.onExit();
+  }
+
+  _nextAnimalType() {
+    const type = ANIMAL_TYPES[this._animalIndex % ANIMAL_TYPES.length];
+    this._animalIndex++;
+    return type;
   }
 
   // --- UI Construction ---
@@ -183,19 +162,12 @@ export class ChallengeAuthorMode {
     topBar.className = 'author-top-bar';
     this.rootEl.appendChild(topBar);
 
-    // Actor palette container
     const actorPaletteEl = document.createElement('div');
     actorPaletteEl.className = 'author-actor-palette';
+    actorPaletteEl.style.cssText = 'display:flex; align-items:center; gap:8px; flex:1;';
     topBar.appendChild(actorPaletteEl);
-    this.actorPalette = new ActorPalette(actorPaletteEl, this.sim, this.bus, {
-      renderBadge: (actor) => {
-        if (this._referenceActorIds.has(actor.id)) return 'Ref';
-        if (actor.id === this._studentActorId) return 'Student';
-        return null;
-      },
-    });
+    this.actorPalette = new ElementaryActorPalette(actorPaletteEl, this.sim, this.bus);
 
-    // Top bar buttons
     const topBtns = document.createElement('div');
     topBtns.className = 'author-top-btns';
     topBar.appendChild(topBtns);
@@ -203,7 +175,6 @@ export class ChallengeAuthorMode {
     const howToBtn = document.createElement('button');
     howToBtn.className = 'author-btn';
     howToBtn.textContent = 'How To';
-    howToBtn.title = 'Challenge authoring guide';
     howToBtn.addEventListener('click', () => this._showAuthorHowTo());
     topBtns.appendChild(howToBtn);
 
@@ -218,7 +189,6 @@ export class ChallengeAuthorMode {
     mainArea.className = 'author-main-area';
     this.rootEl.appendChild(mainArea);
 
-    // Left: workspace + tool sidebar
     const leftCol = document.createElement('div');
     leftCol.className = 'author-left-col';
     mainArea.appendChild(leftCol);
@@ -230,19 +200,31 @@ export class ChallengeAuthorMode {
 
     this.workspace = new Workspace(this.workspaceEl, this.bus);
     this.interactionMgr = new GraphInteractionManager(this.sim, this.bus, this.workspace);
-    this.panelFactory = new PanelFactory(this.sim, this.bus, this.interactionMgr);
+    this.blockInteraction = new UnifixBlockInteraction(this.sim, this.bus);
+    this.panelFactory = new ElementaryPanelFactory(this.sim, this.bus, this.blockInteraction, {
+      authorMode: true,
+      graphInteractionManager: this.interactionMgr,
+    });
 
-    // Tool sidebar inside left column
+    // Tool sidebar
     const toolSidebarEl = document.createElement('div');
     toolSidebarEl.className = 'author-tool-sidebar tool-sidebar';
     leftCol.appendChild(toolSidebarEl);
     this.toolSidebar = new ToolSidebar(toolSidebarEl, this.bus, this.workspace);
 
+    // Hide acceleration and CSV buttons (not used in elementary)
+    for (const btn of toolSidebarEl.querySelectorAll('.sidebar-tool-btn')) {
+      const title = btn.title || '';
+      const text = btn.textContent || '';
+      if (title.includes('Accel') || text.includes('Accel')) btn.style.display = 'none';
+      if (title.includes('CSV') || text.includes('Import CSV')) btn.style.display = 'none';
+    }
+
     // Right: config panel
     const rightCol = document.createElement('div');
     rightCol.className = 'author-right-col';
     mainArea.appendChild(rightCol);
-    this.configPanel = new AuthorConfigPanel(rightCol, this.bus);
+    this.configPanel = new AuthorConfigPanel(rightCol, this.bus, { hideAcceleration: true });
 
     // Bottom bar: save/load/practice/broadcast
     const bottomBar = document.createElement('div');
@@ -277,7 +259,7 @@ export class ChallengeAuthorMode {
     broadcastBtn.addEventListener('click', () => this._handleBroadcast());
     bottomBar.appendChild(broadcastBtn);
 
-    // Playback controls at very bottom of left column
+    // Playback controls
     const controlsEl = document.createElement('div');
     controlsEl.className = 'author-controls controls';
     controlsEl.innerHTML = `
@@ -294,7 +276,6 @@ export class ChallengeAuthorMode {
     `;
     leftCol.appendChild(controlsEl);
 
-    // Wire up playback manually (PlaybackControls expects specific IDs, so we wire manually)
     this.timeController = new TimeController(this.sim, this.bus);
 
     const playBtn = controlsEl.querySelector('.author-ctrl-play');
@@ -323,7 +304,7 @@ export class ChallengeAuthorMode {
       speedValueEl.textContent = this.sim.playbackSpeed + '\u00D7';
     });
 
-    // Time updates
+    // Time updates → draw
     this.bus.on('time:update', ({ currentTime }) => {
       this.workspace.drawTimeCursors(currentTime);
       this.workspace.drawFrames(currentTime);
@@ -334,15 +315,17 @@ export class ChallengeAuthorMode {
       this.workspace.redrawAll();
     });
 
-    // Target segments changed (from config panel)
+    // Target segments changed
     this.bus.on('targetSegments:changed', ({ segments }) => {
       this.sim.targetSegments = segments;
       this.workspace.redrawAll();
     });
 
-    // Panel create requests
+    // Panel create requests (from ToolSidebar component drag)
     this._spawnOffset = 0;
     this.bus.on('panel:create-request', ({ type, x, y }) => {
+      // No acceleration in elementary
+      if (type === 'acceleration') return;
       this._spawnOffset = (this._spawnOffset + 30) % 150;
       this._createPanel(type, {
         x: x ?? 50 + this._spawnOffset,
@@ -370,6 +353,22 @@ export class ChallengeAuthorMode {
         });
       }
     });
+
+    // Panning — only redraw world panels, not graphs
+    this.bus.on('posrange:changed', () => {
+      this.workspace.drawFrames(this.sim.currentTime);
+    });
+
+    // Clear all blocks
+    this.bus.on('blocks:clear-all', () => {
+      for (const actor of this.sim.actors) {
+        if (actor.readOnly) continue;
+        const model = new UnifixBlockModel(actor);
+        model.clearAll();
+        model.rebuildPLF();
+        this.bus.emit('actor:edited', { actorId: actor.id });
+      }
+    });
   }
 
   _showAuthorHowTo() {
@@ -384,29 +383,29 @@ export class ChallengeAuthorMode {
 
     card.innerHTML = `
       <button class="about-close" title="Close">&times;</button>
-      <h2 class="about-title">How To Author a Challenge</h2>
+      <h2 class="about-title">How To Author an Elementary Challenge</h2>
       <div class="about-text">
 
         <p style="color:#8ab4f8;font-weight:600;font-size:14px;margin-bottom:4px;">1. Set Up the Scenario</p>
         <p>
-          When you enter Author Mode you start with two actors:
-          a <strong>Reference</strong> actor (red) and a <strong>Student</strong> actor (green).
-          The Reference actor is what students will see but cannot edit.
-          The Student actor is the template for what each student receives.
+          You start with two animal actors:
+          a <strong>Reference</strong> animal (red) and a <strong>Student</strong> animal (green).
+          The Reference is what students see but cannot edit.
+          The Student is the starting template each student receives.
         </p>
 
         <p style="color:#8ab4f8;font-weight:600;font-size:14px;margin-bottom:4px;">2. Build the Reference Motion</p>
         <p>
-          Use the graph tools (drag points, add velocity segments) on the <strong>Position</strong>
-          or <strong>Velocity</strong> graph to create the motion you want students to match or
-          respond to. You can add more reference actors with the <strong>+</strong> button in the
-          top bar.
+          Use the graph tools to create motion for the Reference animal.
+          On the <strong>Position</strong> graph, drag points or use "Add Point" from the sidebar.
+          On the <strong>Velocity</strong> graph, drag unifix blocks to set speed.
+          You can add more reference animals with the <strong>+</strong> button.
         </p>
 
         <p style="color:#8ab4f8;font-weight:600;font-size:14px;margin-bottom:4px;">3. Set Up the Student Template</p>
         <p>
           Edit the <strong>Student</strong> actor to define the starting motion students will see.
-          You might leave it flat (at zero) so students build from scratch, or give them a
+          Leave it flat (at zero) so students build from scratch, or give them a
           partial solution to complete.
         </p>
 
@@ -417,7 +416,7 @@ export class ChallengeAuthorMode {
         <ul style="margin:4px 0 12px 18px;font-size:13px;color:#bbc;line-height:1.7;">
           <li><strong>Challenge Title</strong> &mdash; give your challenge a descriptive name</li>
           <li><strong>Instructions</strong> &mdash; tell students what to do</li>
-          <li><strong>Student Sees</strong> &mdash; choose which panels are visible (World, Position, Velocity, Acceleration)</li>
+          <li><strong>Student Sees</strong> &mdash; choose which panels are visible (World, Position, Velocity)</li>
           <li><strong>Student Can Edit</strong> &mdash; choose which graphs students can modify</li>
           <li><strong>Results Display</strong> &mdash; pick which graph to overlay or tile in the results view</li>
         </ul>
@@ -425,30 +424,30 @@ export class ChallengeAuthorMode {
         <p style="color:#8ab4f8;font-weight:600;font-size:14px;margin-bottom:4px;">5. Add Target Segments (Optional)</p>
         <p>
           Target segments are orange guide lines shown on the position graph that students
-          must try to match. Click <strong>+ Add Segment</strong> in the config panel to define
-          time ranges with target position values.
+          must try to match. Click <strong>+ Add Segment</strong> in the config panel.
         </p>
 
         <p style="color:#8ab4f8;font-weight:600;font-size:14px;margin-bottom:4px;">6. Preview &amp; Test</p>
         <p>
-          Use the <strong>playback controls</strong> at the bottom to preview the animation.
-          Click <strong>Practice (10 students)</strong> to simulate a class of 10 students and
+          Use the <strong>playback controls</strong> to preview the animation.
+          Click <strong>Practice (10 students)</strong> to simulate a class and
           see how the results view will look.
         </p>
 
         <p style="color:#8ab4f8;font-weight:600;font-size:14px;margin-bottom:4px;">7. Save or Broadcast</p>
         <ul style="margin:4px 0 12px 18px;font-size:13px;color:#bbc;line-height:1.7;">
-          <li><strong>Save Challenge</strong> &mdash; download the challenge as a .json file you can share or reload later</li>
-          <li><strong>Load Challenge</strong> &mdash; open a previously saved challenge file for editing</li>
-          <li><strong>Broadcast to Students</strong> &mdash; send the challenge live to all connected students</li>
+          <li><strong>Save Challenge</strong> &mdash; download as a .json file</li>
+          <li><strong>Load Challenge</strong> &mdash; open a previously saved challenge</li>
+          <li><strong>Broadcast to Students</strong> &mdash; send live to all connected students</li>
         </ul>
 
         <p style="color:#8ab4f8;font-weight:600;font-size:14px;margin-bottom:4px;">Tips</p>
         <ul style="margin:4px 0 0 18px;font-size:13px;color:#bbc;line-height:1.7;">
           <li>Panels can be <strong>dragged</strong> by their title bar and <strong>resized</strong> from the bottom-right corner</li>
-          <li>Use the <strong>Components</strong> sidebar to add or remove World, Position, Velocity, and Acceleration panels</li>
-          <li>The <strong>Edit Tools</strong> sidebar works the same as in the main app &mdash; Select &amp; Drag, Eraser, and drag-to-graph tools</li>
-          <li>Click an actor chip in the top bar to rename it or change its color</li>
+          <li>Use the <strong>Components</strong> sidebar to add World, Position, and Velocity panels</li>
+          <li>Use the actor dropdown in each panel to toggle which animals are shown</li>
+          <li>Right-click an actor chip to cycle its color</li>
+          <li>Double-click an actor chip to rename it</li>
         </ul>
 
       </div>
@@ -474,24 +473,23 @@ export class ChallengeAuthorMode {
     const wsW = wsRect.width || 600;
     const wsH = wsRect.height || 400;
     const halfW = Math.floor((wsW - 30) / 2);
-    const isVertical = this.sim.worldType === 'vertical';
+    const isSea = this.sim.worldType === 'sea';
 
-    // Vertical world: tall narrow panel on left; graphs fill remaining space to the right
-    const vWorldW = 200;
-    const graphLeft = vWorldW + 20;
+    const seaWorldW = 200;
+    const graphLeft = seaWorldW + 20;
     const graphW = Math.floor((wsW - graphLeft - 20) / 2);
     const halfH = Math.floor((wsH - 30) / 2);
+    const worldH = Math.floor(wsH * 0.35);
+    const graphH = wsH - worldH - 20;
 
-    const defaults = isVertical ? {
-      world:        { x: 10, y: 10, w: vWorldW, h: wsH - 20 },
-      position:     { x: graphLeft, y: 10, w: graphW, h: halfH },
-      velocity:     { x: graphLeft + graphW + 10, y: 10, w: graphW, h: halfH },
-      acceleration: { x: graphLeft, y: halfH + 20, w: graphW, h: halfH },
+    const defaults = isSea ? {
+      world:    { x: 10, y: 10, w: seaWorldW, h: wsH - 20 },
+      position: { x: graphLeft, y: 10, w: graphW, h: halfH },
+      velocity: { x: graphLeft + graphW + 10, y: 10, w: graphW, h: halfH },
     } : {
-      world:        { x: 10, y: 10, w: wsW - 20, h: Math.floor(wsH * 0.3) },
-      position:     { x: 10, y: Math.floor(wsH * 0.3) + 20, w: halfW, h: Math.floor(wsH * 0.6) },
-      velocity:     { x: halfW + 20, y: Math.floor(wsH * 0.3) + 20, w: halfW, h: Math.floor(wsH * 0.6) },
-      acceleration: { x: 10, y: Math.floor(wsH * 0.65), w: halfW, h: Math.floor(wsH * 0.3) },
+      world:    { x: 10, y: 10, w: wsW - 20, h: worldH },
+      position: { x: 10, y: worldH + 20, w: halfW, h: graphH },
+      velocity: { x: halfW + 20, y: worldH + 20, w: halfW, h: graphH },
     };
 
     const d = defaults[type] || defaults.position;
@@ -502,6 +500,7 @@ export class ChallengeAuthorMode {
       height: height ?? d.h,
       onClose: (p) => {
         this.interactionMgr.unregisterGraph(p.id);
+        this.blockInteraction.unregisterGraph(p.id);
         this.workspace.removePanel(p);
       },
       onFocus: (p) => this.workspace.bringToFront(p),
@@ -520,44 +519,43 @@ export class ChallengeAuthorMode {
   }
 
   _createDefaultActors() {
-    // Reference actor (red) — editable in author mode; readOnly set on student side
-    const refPlf = new PiecewiseLinearFunction([
-      { t: 0, v: 0 },
-      { t: this.sim.timeRange.max, v: 0 },
-    ], [0]);
+    // Reference actor (red puppy)
+    const refPlf = new PiecewiseLinearFunction([{ t: 0, v: 0 }]);
     const refActor = new Actor({
       id: 'ref-' + Date.now(),
       name: 'Reference',
       color: '#e74c3c',
       positionFunction: refPlf,
+      animalType: 'puppy',
     });
     this.sim.addActor(refActor);
     this._referenceActorIds.add(refActor.id);
+    this._animalIndex = 1; // puppy used
 
-    // Student template actor (green, editable)
-    const stuPlf = new PiecewiseLinearFunction([
-      { t: 0, v: 0 },
-      { t: this.sim.timeRange.max, v: 0 },
-    ], [0]);
+    // Student template actor (green kitten)
+    const stuPlf = new PiecewiseLinearFunction([{ t: 0, v: 0 }]);
     const stuActor = new Actor({
       id: 'student-template',
       name: 'Student',
       color: '#2ecc71',
       positionFunction: stuPlf,
+      animalType: 'kitten',
     });
     this.sim.addActor(stuActor);
     this._studentActorId = stuActor.id;
+    this._animalIndex = 2; // kitten used
 
     this.bus.emit('actors:changed');
   }
 
-  _createDefaultPanels(visibleSet) {
+  _createDefaultPanels(visibleSet, panelActorLinkage) {
     const types = visibleSet || new Set(['world', 'position', 'velocity']);
     const allIds = this.sim.actors.map(a => a.id);
-    if (types.has('world'))    this._createPanel('world',    { actorIds: allIds });
-    if (types.has('position')) this._createPanel('position', { actorIds: allIds });
-    if (types.has('velocity')) this._createPanel('velocity', { actorIds: allIds });
-    if (types.has('acceleration')) this._createPanel('acceleration', { actorIds: allIds });
+    for (const type of ['world', 'position', 'velocity']) {
+      if (!types.has(type)) continue;
+      const ids = (panelActorLinkage && panelActorLinkage[type]) || allIds;
+      this._createPanel(type, { actorIds: ids });
+    }
   }
 
   // --- Serialization ---
@@ -591,13 +589,13 @@ export class ChallengeAuthorMode {
     const panelsCopy = [...this.workspace.panels];
     for (const panel of panelsCopy) {
       this.interactionMgr.unregisterGraph(panel.id);
+      this.blockInteraction.unregisterGraph(panel.id);
       this.workspace.removePanel(panel);
     }
     this.sim.actors = [];
     this._referenceActorIds.clear();
     this._studentActorId = null;
 
-    // Restore from loaded data
     const seed = data.seed;
     this.sim.worldType = seed.worldType;
     this.sim.timeRange = { ...seed.timeRange };
@@ -614,6 +612,7 @@ export class ChallengeAuthorMode {
       const actor = new Actor({
         id: ad.id, name: ad.name, color: ad.color,
         positionFunction: plf,
+        animalType: ad.animalType || this._nextAnimalType(),
       });
       this.sim.addActor(actor);
       this._referenceActorIds.add(actor.id);
@@ -629,6 +628,7 @@ export class ChallengeAuthorMode {
       name: 'Student',
       color: '#2ecc71',
       positionFunction: stPlf,
+      animalType: st.animalType || 'kitten',
     });
     this.sim.addActor(studentActor);
     this._studentActorId = studentActor.id;
@@ -636,7 +636,7 @@ export class ChallengeAuthorMode {
     this.bus.emit('actors:changed');
 
     const visible = new Set(data.studentConfig.visiblePanels || ['world', 'position']);
-    this._createDefaultPanels(visible);
+    this._createDefaultPanels(visible, data.panelActorLinkage);
 
     if (this.configPanel) {
       this.configPanel.loadFromChallenge(data);
@@ -657,9 +657,6 @@ export class ChallengeAuthorMode {
     }
   }
 
-  /**
-   * Get reference actors (for results display reference overlay).
-   */
   getReferenceActors() {
     return this.sim.actors.filter(a => this._referenceActorIds.has(a.id));
   }

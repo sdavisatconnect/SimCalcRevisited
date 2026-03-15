@@ -16,14 +16,18 @@ export class ChallengeTemplateIO {
    *   { title, instructions, visiblePanels, editablePanels, allowNewPanels,
    *     overlaidGraphType, tiledGraphType, showReferenceInResults }
    */
-  static serialize({ simulation, referenceActors, studentTemplateActor, config }) {
-    const serializeActor = (actor) => ({
-      id: actor.id,
-      name: actor.name,
-      color: actor.color,
-      positionPoints: actor.positionFn.points.map(p => ({ t: p.t, v: p.v })),
-      accelerations: actor.positionFn.accelerations || [],
-    });
+  static serialize({ simulation, referenceActors, studentTemplateActor, config, workspace }) {
+    const serializeActor = (actor) => {
+      const data = {
+        id: actor.id,
+        name: actor.name,
+        color: actor.color,
+        positionPoints: actor.positionFn.points.map(p => ({ t: p.t, v: p.v })),
+        accelerations: actor.positionFn.accelerations || [],
+      };
+      if (actor.animalType) data.animalType = actor.animalType;
+      return data;
+    };
 
     return {
       version: 2,
@@ -34,6 +38,7 @@ export class ChallengeTemplateIO {
       },
       seed: {
         worldType: simulation.worldType,
+        edition: simulation.edition || 'standard',
         timeRange: { ...simulation.timeRange },
         posRange: { ...simulation.posRange },
         velRange: { ...simulation.velRange },
@@ -44,6 +49,7 @@ export class ChallengeTemplateIO {
         ? {
             positionPoints: studentTemplateActor.positionFn.points.map(p => ({ t: p.t, v: p.v })),
             accelerations: studentTemplateActor.positionFn.accelerations || [],
+            ...(studentTemplateActor.animalType ? { animalType: studentTemplateActor.animalType } : {}),
           }
         : {
             // Default blank: flat at position 0 over the full time range
@@ -58,6 +64,10 @@ export class ChallengeTemplateIO {
         editablePanels: config.editablePanels || ['position'],
         allowNewPanels: config.allowNewPanels || false,
       },
+      // Per-panel actor linkage: which actors are linked to each panel type
+      panelActorLinkage: workspace ? ChallengeTemplateIO._buildPanelActorLinkage(workspace) : {},
+      // Per-graph scale settings (axis ranges and tick steps)
+      graphScales: workspace ? ChallengeTemplateIO._buildGraphScales(workspace) : {},
       resultsConfig: {
         overlaidGraphType: config.overlaidGraphType || 'position',
         tiledGraphType: config.tiledGraphType || 'position',
@@ -130,5 +140,48 @@ export class ChallengeTemplateIO {
    */
   static isV2Challenge(data) {
     return data && data.version === 2 && data.seed && data.studentConfig;
+  }
+
+  /**
+   * Build a map of panel type → linked actor IDs from the workspace.
+   * If multiple panels of the same type exist, merge their linked actors.
+   */
+  /**
+   * Build a map of panel type → graph scale settings from the workspace.
+   * Captures axis ranges and tick steps for each graph panel.
+   */
+  static _buildGraphScales(workspace) {
+    const scales = {};
+    for (const panel of workspace.panels) {
+      if (panel.type === 'world') continue;
+      const renderer = panel.component && panel.component.renderer;
+      if (!renderer) continue;
+      scales[panel.type] = {
+        xRange: { ...renderer.xRange },
+        yRange: { ...renderer.yRange },
+        xTickStep: renderer.xTickStep || null,
+        yTickStep: renderer.yTickStep || null,
+      };
+    }
+    return scales;
+  }
+
+  static _buildPanelActorLinkage(workspace) {
+    const linkage = {};
+    for (const panel of workspace.panels) {
+      const type = panel.type;
+      const ids = panel.linkedActors.map(a => a.id);
+      console.log(`[DEBUG _buildPanelActorLinkage] panel type="${type}" linkedActorIds=`, ids);
+      if (!linkage[type]) {
+        linkage[type] = ids;
+      } else {
+        // Merge (union) if multiple panels of same type
+        const existing = new Set(linkage[type]);
+        for (const id of ids) existing.add(id);
+        linkage[type] = [...existing];
+      }
+    }
+    console.log('[DEBUG _buildPanelActorLinkage] final linkage:', JSON.stringify(linkage));
+    return linkage;
   }
 }

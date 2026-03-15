@@ -13,7 +13,7 @@
  * @param {number} motion.facing  - -1 = left, 0 = forward, 1 = right
  * @param {number} motion.walkPhase - 0-1 cyclic phase for leg/body animation
  * @param {string} animalType - 'puppy'|'kitten'|'elephant'|'horse'|'cow'|'bunny'|'duck'|'penguin'|'frog'|'bear'
- * @param {boolean} underwater - when true, overlay fishbowl helmet and bubble trail
+ * @param {boolean} underwater - when true, overlay fishbowl helmet
  * @param {boolean} flying - when true, overlay wings (SeaWorld above water)
  */
 export function drawAnimalCharacter(ctx, x, groundY, color, name, scale = 1, motion, animalType, underwater, flying) {
@@ -48,17 +48,16 @@ export function drawAnimalCharacter(ctx, x, groundY, color, name, scale = 1, mot
 
   ctx.restore();
 
-  // Fishbowl/bubbles drawn after body so they appear in front (over the head)
+  // Fishbowl drawn after body so it appears in front (over the head)
   if (underwater) {
     const headTop = drawFn.headTop(groundY, s);
-    const headCenterY = headTop + drawFn.headH(s) * 0.5;
+    const chinY = drawFn.chinY ? drawFn.chinY(groundY, s) : headTop + drawFn.headH(s) * 0.5 + 16 * s * 0.55;
     ctx.save();
-    _drawFishbowlHelmet(ctx, x, headCenterY, s);
-    _drawBubbles(ctx, x, headTop, s, walkPhase);
+    _drawFishbowlHelmet(ctx, x, headTop, chinY, s);
     ctx.restore();
   }
 
-  // Name label drawn after restore so it is never mirrored
+  // Name label
   const headTop = drawFn.headTop(groundY, s);
   ctx.save();
   _drawNameLabel(ctx, x, headTop, color, name, s);
@@ -131,9 +130,17 @@ function _drawSideEye(ctx, eyeX, eyeY, radius, s) {
   ctx.fill();
 }
 
-/** Draw old-fashioned fishbowl helmet (upside-down glass dome) over head */
-function _drawFishbowlHelmet(ctx, x, headCenterY, s) {
-  const r = 16 * s; // dome radius — larger than the head
+/** Draw old-fashioned fishbowl helmet (upside-down glass dome) over head.
+ *  @param {number} headTop - Y of top of head
+ *  @param {number} chinY   - Y of lowest chin/face point
+ */
+function _drawFishbowlHelmet(ctx, x, headTop, chinY, s) {
+  // Position the flat bottom 2 pixels (scaled) below the chin
+  const bottomEdgeY = chinY + 2 * s;
+  // Centre dome between headTop and bottomEdgeY; ensure radius large enough
+  const headCenterY = (headTop + bottomEdgeY) * 0.5;
+  const minR = (bottomEdgeY - headTop) * 0.5 + 4 * s;
+  const r = Math.max(minR, 16 * s);
 
   // Glass dome — semi-transparent blue-tinted
   ctx.fillStyle = 'rgba(200, 230, 255, 0.35)';
@@ -151,9 +158,10 @@ function _drawFishbowlHelmet(ctx, x, headCenterY, s) {
   // Flat bottom edge of the helmet (the opening)
   ctx.strokeStyle = 'rgba(100, 160, 200, 0.7)';
   ctx.lineWidth = 2 * s;
+  const bottomHalfWidth = Math.sqrt(Math.max(0, r * r - (bottomEdgeY - headCenterY) ** 2));
   ctx.beginPath();
-  ctx.moveTo(x - r * 0.85, headCenterY + r * 0.55);
-  ctx.lineTo(x + r * 0.85, headCenterY + r * 0.55);
+  ctx.moveTo(x - bottomHalfWidth, bottomEdgeY);
+  ctx.lineTo(x + bottomHalfWidth, bottomEdgeY);
   ctx.stroke();
 
   // White highlight arc (glass reflection, upper-left)
@@ -199,26 +207,6 @@ function _drawWings(ctx, x, bodyMidY, s, walkPhase) {
   ctx.restore();
 }
 
-/** Draw bubble trail above head */
-function _drawBubbles(ctx, x, headTop, s, walkPhase) {
-  ctx.fillStyle = 'rgba(150, 220, 255, 0.6)';
-  ctx.strokeStyle = 'rgba(100, 180, 240, 0.5)';
-  ctx.lineWidth = 0.5 * s;
-  const bubbles = [
-    { dx: -3, dy: -12, r: 2 },
-    { dx: 4, dy: -18, r: 1.5 },
-    { dx: 0, dy: -25, r: 2.5 },
-  ];
-  for (const b of bubbles) {
-    const bx = x + b.dx * s + Math.sin(walkPhase * Math.PI * 2 + b.dy) * 2 * s;
-    const by = headTop + b.dy * s - Math.abs(Math.sin(walkPhase * Math.PI * 2 + b.dx)) * 3 * s;
-    ctx.beginPath();
-    ctx.arc(bx, by, b.r * s, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-  }
-}
-
 /** Darken a CSS color string by mixing with black */
 function _darken(color, amount) {
   // Quick approach: use rgba overlay
@@ -242,6 +230,7 @@ function _drawFrontLegs(ctx, x, legsTop, legW, legH, legGap, s, legColor) {
 const _puppy = {
   headH: (s) => 14 * s,
   headTop: (groundY, s) => groundY - 50 * s,
+  chinY: (groundY, s) => groundY - 22 * s, // tongue bottom
 
   front(ctx, x, groundY, color, s, walkPhase) {
     const bodyW = 24 * s, bodyH = 18 * s;
@@ -410,6 +399,7 @@ const _puppy = {
 const _kitten = {
   headH: (s) => 14 * s,
   headTop: (groundY, s) => groundY - 50 * s,
+  chinY: (groundY, s) => groundY - 27 * s, // muzzle bottom
 
   front(ctx, x, groundY, color, s, walkPhase) {
     const bodyW = 20 * s, bodyH = 18 * s;
@@ -619,6 +609,7 @@ const _kitten = {
 const _elephant = {
   headH: (s) => 16 * s,
   headTop: (groundY, s) => groundY - 52 * s,
+  chinY: (groundY, s) => groundY - 16 * s, // trunk tip
 
   front(ctx, x, groundY, color, s, walkPhase) {
     const bodyW = 28 * s, bodyH = 18 * s;
@@ -772,6 +763,7 @@ const _elephant = {
 const _horse = {
   headH: (s) => 16 * s,
   headTop: (groundY, s) => groundY - 52 * s,
+  chinY: (groundY, s) => groundY - 28 * s, // head ellipse bottom
 
   front(ctx, x, groundY, color, s, walkPhase) {
     const bodyW = 22 * s, bodyH = 18 * s;
@@ -932,6 +924,7 @@ const _horse = {
 const _cow = {
   headH: (s) => 14 * s,
   headTop: (groundY, s) => groundY - 50 * s,
+  chinY: (groundY, s) => groundY - 26 * s, // head ellipse bottom
 
   front(ctx, x, groundY, color, s, walkPhase) {
     const bodyW = 28 * s, bodyH = 18 * s;
@@ -1108,6 +1101,7 @@ const _cow = {
 const _bunny = {
   headH: (s) => 14 * s,
   headTop: (groundY, s) => groundY - 52 * s,
+  chinY: (groundY, s) => groundY - 20 * s, // head circle bottom
 
   front(ctx, x, groundY, color, s, walkPhase) {
     const bodyW = 20 * s, bodyH = 16 * s;
@@ -1280,6 +1274,7 @@ const _bunny = {
 const _duck = {
   headH: (s) => 12 * s,
   headTop: (groundY, s) => groundY - 48 * s,
+  chinY: (groundY, s) => groundY - 20 * s, // bill bottom
 
   front(ctx, x, groundY, color, s, walkPhase) {
     const bodyW = 22 * s, bodyH = 18 * s;
@@ -1448,6 +1443,7 @@ const _duck = {
 const _penguin = {
   headH: (s) => 12 * s,
   headTop: (groundY, s) => groundY - 50 * s,
+  chinY: (groundY, s) => groundY - 23 * s, // head circle bottom
 
   front(ctx, x, groundY, color, s, walkPhase) {
     const bodyW = 20 * s, bodyH = 22 * s;
@@ -1576,6 +1572,7 @@ const _penguin = {
 const _frog = {
   headH: (s) => 12 * s,
   headTop: (groundY, s) => groundY - 46 * s,
+  chinY: (groundY, s) => groundY - 18 * s, // head ellipse bottom
 
   front(ctx, x, groundY, color, s, walkPhase) {
     const bodyW = 26 * s, bodyH = 14 * s;
@@ -1725,6 +1722,7 @@ const _frog = {
 const _bear = {
   headH: (s) => 14 * s,
   headTop: (groundY, s) => groundY - 52 * s,
+  chinY: (groundY, s) => groundY - 25 * s, // head circle bottom
 
   front(ctx, x, groundY, color, s, walkPhase) {
     const bodyW = 26 * s, bodyH = 20 * s;

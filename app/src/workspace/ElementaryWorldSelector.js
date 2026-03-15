@@ -208,11 +208,10 @@ export class ElementaryWorldSelector {
     broadcastBtn.className = 'elementary-secondary-btn';
     broadcastBtn.textContent = t('broadcastChallenge');
     broadcastBtn.addEventListener('click', () => {
-      // Start with default world/animal/color for teacher
-      this.selectedWorld = this.selectedWorld || 'frolic';
-      this.selectedAnimal = this.selectedAnimal || 'puppy';
-      this.selectedColor = this.selectedColor || '#e74c3c';
-      this._start();
+      this.dismiss();
+      this.bus.emit('challenge:author-start', {
+        type: this.selectedWorld || 'frolic',
+      });
     });
     secondaryRow.appendChild(broadcastBtn);
 

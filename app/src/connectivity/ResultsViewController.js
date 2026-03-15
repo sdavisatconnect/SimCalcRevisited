@@ -37,9 +37,13 @@ export class ResultsViewController {
    * Does NOT modify sim.actors — teacher palette stays clean.
    * @param {object} submissions - raw Firebase submissions
    */
-  enterResultsMode(submissions) {
+  enterResultsMode(submissions, resultsConfig) {
+    this._resultsConfig = resultsConfig || {};
+    console.log('[DEBUG ResultsView] resultsConfig:', JSON.stringify(this._resultsConfig));
+    console.log('[DEBUG ResultsView] raw submissions:', JSON.stringify(submissions).substring(0, 500));
     const resultsMgr = new ResultsManager(this.sim, this.bus);
     const { students } = resultsMgr.parseSubmissions(submissions);
+    console.log('[DEBUG ResultsView] parsed students:', students.length, students.map(s => ({ id: s.id, initials: s.initials, actorCount: s.actors.length })));
     this.students = students;
 
     // Collect all student actors (kept separate from sim.actors)
@@ -60,6 +64,8 @@ export class ResultsViewController {
     // Remove any lingering overlays (world selector, etc.)
     const overlay = this.workspace.container.querySelector('.world-selector-overlay');
     if (overlay) overlay.remove();
+    const elemOverlay = this.workspace.container.querySelector('.elementary-selector-overlay');
+    if (elemOverlay) elemOverlay.remove();
 
     // Build results layout (sim.actors unchanged — teacher actors stay in palette)
     this._buildLayout();
@@ -93,10 +99,13 @@ export class ResultsViewController {
     const graphTop = worldH + 20;
     const graphH = wsH - graphTop - 10;
     const halfW = Math.floor((wsW - 30) / 2);
-    this._createOverlaidPanel(10, graphTop, halfW, graphH, 'position');
+    const overlaidType = this._resultsConfig.overlaidGraphType || 'position';
+    const tiledType = this._resultsConfig.tiledGraphType || 'position';
+    console.log('[DEBUG ResultsView] overlaidType:', overlaidType, 'tiledType:', tiledType);
+    this._createOverlaidPanel(10, graphTop, halfW, graphH, overlaidType);
 
     // 3. Tiled graph panel (real Panel — draggable & resizable)
-    this._createTiledPanel(halfW + 20, graphTop, halfW, graphH, 'position');
+    this._createTiledPanel(halfW + 20, graphTop, halfW, graphH, tiledType);
 
     // 4. Visibility panel in the sidebar
     const sidebar = document.getElementById('tool-sidebar');

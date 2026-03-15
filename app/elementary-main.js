@@ -31,6 +31,8 @@ import { RoomCodeBar } from './src/connectivity/RoomCodeBar.js';
 import { SessionHistoryDialog } from './src/connectivity/SessionHistoryDialog.js';
 import { StudentResultsOverlay } from './src/connectivity/StudentResultsOverlay.js';
 import { ElementaryHowTo } from './src/workspace/ElementaryHowTo.js';
+import { ElementaryAuthorMode } from './src/authoring/ElementaryAuthorMode.js';
+import { PracticeDataGenerator } from './src/connectivity/PracticeDataGenerator.js';
 import { t, getLanguage, setLanguage } from './src/i18n/strings.js';
 
 // --- Setup ---
@@ -250,10 +252,12 @@ bus.on('actor:edited', ({ actorId }) => {
 });
 
 bus.on('actors:changed', () => {
-  // Auto-link any new actors to all existing panels
-  for (const actor of sim.actors) {
-    for (const panel of workspace.panels) {
-      panel.linkActor(actor); // deduplicates internally
+  // Auto-link new actors to panels (only if not in challenge mode)
+  if (!activeChallengeMode) {
+    for (const actor of sim.actors) {
+      for (const panel of workspace.panels) {
+        panel.linkActor(actor); // deduplicates internally
+      }
     }
   }
   workspace.redrawAll();
@@ -294,7 +298,7 @@ document.getElementById('btn-load').addEventListener('click', async () => {
   if (!data) return;
 
   // Dismiss world selector overlay if showing
-  const overlay = workspaceEl.querySelector('.world-selector-overlay');
+  const overlay = workspaceEl.querySelector('.elementary-selector-overlay');
   if (overlay) overlay.remove();
 
   TemplateIO.reconstruct(data, sim, workspace, panelFactory, blockInteraction, bus, createPanel);
@@ -359,10 +363,79 @@ function _updateControlsLabels() {
 // Set initial labels from current language
 _updateControlsLabels();
 
-// --- Broadcast (teacher) ---
-// Broadcast button dynamically created — not in static HTML
-// Teachers access broadcast through the world selector "Broadcast a Challenge" button
-// or we can add one to controls bar:
+// --- Challenge Author Mode ---
+let activeAuthorMode = null;
+const appShell = document.querySelector('.app-shell');
+
+bus.on('challenge:author-start', ({ type }) => {
+  activeAuthorMode = new ElementaryAuthorMode(appShell, {
+    onBroadcast: async (challengeData) => {
+      try {
+        const ownerToken = SessionStore.generateOwnerToken();
+        const title = challengeData.meta?.title || 'Elementary Challenge';
+        const roomCode = await roomManager.createRoom(challengeData, {}, { ownerToken, title });
+        activeRoomCode = roomCode;
+        SessionStore.addSession({ roomCode, ownerToken, title, createdAt: Date.now() });
+
+        const overlay = new RoomCodeOverlay();
+        overlay.show(
+          roomCode,
+          async () => {
+            if (activePollInterval) {
+              clearInterval(activePollInterval);
+              activePollInterval = null;
+            }
+            const submissions = await roomManager.getSubmissions(roomCode);
+            sim.targetSegments = (challengeData.targetSegments || []).map(s => ({ ...s }));
+            if (activeAuthorMode) {
+              activeAuthorMode.exit({ skipOnExit: true });
+              activeAuthorMode = null;
+            }
+            bus.emit('challenge:show-results', { submissions, challengeData, roomCode });
+          },
+          () => {
+            if (activePollInterval) {
+              clearInterval(activePollInterval);
+              activePollInterval = null;
+            }
+            activeRoomCode = null;
+          }
+        );
+
+        activePollInterval = setInterval(async () => {
+          try {
+            const count = await roomManager.getSubmissionCount(roomCode);
+            overlay.updateSubmissionCount(count);
+          } catch (e) {
+            console.warn('Polling error:', e);
+          }
+        }, 7000);
+
+      } catch (err) {
+        console.error('Failed to broadcast from author mode:', err);
+        alert('Failed to broadcast. Check your connection and try again.');
+      }
+    },
+
+    onPractice: (challengeData, count) => {
+      const submissions = PracticeDataGenerator.generate(sim, count);
+      sim.targetSegments = (challengeData.targetSegments || []).map(s => ({ ...s }));
+      if (activeAuthorMode) {
+        activeAuthorMode.exit({ skipOnExit: true });
+        activeAuthorMode = null;
+      }
+      bus.emit('challenge:show-results', { submissions, challengeData, roomCode: 'practice' });
+    },
+
+    onExit: () => {
+      activeAuthorMode = null;
+      new ElementaryWorldSelector(workspaceEl, sim, bus);
+    },
+  });
+
+  activeAuthorMode.enter(type);
+  window._authorMode = activeAuthorMode;
+});
 
 // --- Student Join ---
 bus.on('challenge:join-request', async () => {
@@ -373,12 +446,29 @@ bus.on('challenge:join-request', async () => {
     return;
   }
 
-  const { roomCode, initials, challengeData, settings } = result;
+  const { roomCode, initials, challengeData, settings, animalType, color } = result;
   sim.targetSegments = (challengeData.targetSegments || []).map(s => ({ ...s }));
 
   TemplateIO.reconstruct(challengeData, sim, workspace, panelFactory, blockInteraction, bus, createPanel);
   speedSlider.value = sim.playbackSpeed;
   speedValue.textContent = sim.playbackSpeed + '\u00D7';
+  sidebarEl.style.display = '';
+
+  // Apply student's chosen animal/color to their actor(s)
+  if (animalType || color) {
+    const refIds = new Set((challengeData.referenceActors || []).map(r => r.id));
+    for (const actor of sim.actors) {
+      if (!refIds.has(actor.id)) {
+        if (animalType) actor.animalType = animalType;
+        if (color) actor.color = color;
+      }
+    }
+    // Don't emit actors:changed here — it would re-link all actors to all
+    // panels (since activeChallengeMode isn't set yet), undoing per-panel
+    // linkage from the challenge. Just redraw to pick up the new color/animal.
+    workspace.redrawAll();
+    workspace.drawFrames(sim.currentTime);
+  }
 
   activeChallengeMode = new ChallengeMode(bus, workspace, sim);
   activeChallengeMode.activate(challengeData, settings, initials, roomCode);
@@ -426,7 +516,7 @@ bus.on('challenge:show-results', ({ submissions, challengeData, roomCode }) => {
   if (!submissions) { alert('No submissions yet.'); return; }
 
   activeResultsCtrl = new ResultsViewController(bus, workspace, sim, createPanel, blockInteraction);
-  activeResultsCtrl.enterResultsMode(submissions);
+  activeResultsCtrl.enterResultsMode(submissions, challengeData?.resultsConfig);
 
   if (roomCode && roomCode !== 'practice') {
     activeResultsRoomCode = roomCode;
@@ -437,7 +527,7 @@ bus.on('challenge:show-results', ({ submissions, challengeData, roomCode }) => {
         if (!subs) { alert('No submissions found.'); return; }
         if (activeResultsCtrl) activeResultsCtrl.exitResultsMode();
         activeResultsCtrl = new ResultsViewController(bus, workspace, sim, createPanel, blockInteraction);
-        activeResultsCtrl.enterResultsMode(subs);
+        activeResultsCtrl.enterResultsMode(subs, challengeData?.resultsConfig);
       },
       onCloseRoom: async () => {
         await roomManager.closeRoom(roomCode);
@@ -460,7 +550,7 @@ bus.on('session:reopen-request', () => {
     sim.targetSegments = (challengeData.targetSegments || []).map(s => ({ ...s }));
 
     activeResultsCtrl = new ResultsViewController(bus, workspace, sim, createPanel, blockInteraction);
-    activeResultsCtrl.enterResultsMode(submissions);
+    activeResultsCtrl.enterResultsMode(submissions, challengeData?.resultsConfig);
 
     activeResultsRoomCode = roomCode;
     if (activeRoomCodeBar) activeRoomCodeBar.remove();
@@ -470,7 +560,7 @@ bus.on('session:reopen-request', () => {
         if (!subs) { alert('No submissions found.'); return; }
         if (activeResultsCtrl) activeResultsCtrl.exitResultsMode();
         activeResultsCtrl = new ResultsViewController(bus, workspace, sim, createPanel, blockInteraction);
-        activeResultsCtrl.enterResultsMode(subs);
+        activeResultsCtrl.enterResultsMode(subs, challengeData?.resultsConfig);
       },
       onCloseRoom: async () => {
         await roomManager.closeRoom(roomCode);
@@ -501,11 +591,26 @@ bus.on('session:reopen-request', () => {
         new ElementaryWorldSelector(workspaceEl, sim, bus);
         return;
       }
-      const { roomCode, initials, challengeData, settings } = result;
+      const { roomCode, initials, challengeData, settings, animalType, color } = result;
       sim.targetSegments = (challengeData.targetSegments || []).map(s => ({ ...s }));
       TemplateIO.reconstruct(challengeData, sim, workspace, panelFactory, blockInteraction, bus, createPanel);
       speedSlider.value = sim.playbackSpeed;
       speedValue.textContent = sim.playbackSpeed + '\u00D7';
+      sidebarEl.style.display = '';
+
+      // Apply student's chosen animal/color
+      if (animalType || color) {
+        const refIds = new Set((challengeData.referenceActors || []).map(r => r.id));
+        for (const actor of sim.actors) {
+          if (!refIds.has(actor.id)) {
+            if (animalType) actor.animalType = animalType;
+            if (color) actor.color = color;
+          }
+        }
+        workspace.redrawAll();
+        workspace.drawFrames(sim.currentTime);
+      }
+
       activeChallengeMode = new ChallengeMode(bus, workspace, sim);
       activeChallengeMode.activate(challengeData, settings, initials, roomCode);
       const studentId = `${initials}-${Date.now()}`;

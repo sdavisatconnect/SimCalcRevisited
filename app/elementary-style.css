@@ -595,3 +595,50 @@
     font-size: 22px;
   }
 }
+
+/* ===== Join Dialog — elementary overrides ===== */
+/* Make join dialog card wider for the animal grid and use light theme */
+.elementary-edition .join-dialog-card {
+  max-width: 520px;
+  background: #ffffff;
+  color: #2c5f8a;
+  border: 1px solid #d0e4f7;
+}
+
+.elementary-edition .join-dialog-title {
+  color: #2c5f8a;
+}
+
+.elementary-edition .join-dialog-label {
+  color: #4a7fa5;
+}
+
+.elementary-edition .join-dialog-input {
+  background: #f0f7ff;
+  border-color: #d0e4f7;
+  color: #2c3e50;
+}
+
+.elementary-edition .join-dialog-input:focus {
+  border-color: #3a7bc8;
+}
+
+.elementary-edition .join-dialog-error {
+  color: #e74c3c;
+}
+
+/* Hide steps by default — JS controls visibility */
+.join-dialog-step {
+  display: none;
+}
+
+/* "Let's Go" button inside join dialog */
+.join-dialog-card .elementary-start-btn {
+  width: 100%;
+}
+
+/* Back button inside join dialog */
+.join-dialog-card .elementary-secondary-btn {
+  display: block;
+  margin: 0 auto;
+}

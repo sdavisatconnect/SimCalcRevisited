@@ -18,6 +18,10 @@ export class SeaWorld {
     // Seed-based background creatures (deterministic from index)
     this._bgCreatures = this._generateBgCreatures();
 
+    // Bubble particle state — keyed by actor id/name
+    // Each bubble lives in position-space so it's independent of animal movement
+    this._bubbleParticles = new Map();
+
     // Panning state
     this._panState = null;
     this._setupPanning();
@@ -239,6 +243,11 @@ export class SeaWorld {
       const charScale = n > 10 ? Math.max(0.2, floorScale * (10 / n)) : floorScale;
 
       drawAnimalCharacter(ctx, cx, animalY, actor.color, actor.name, charScale, motion, actor.animalType, underwater, flying);
+
+      // ── Underwater bubbles (position-based particles) ──
+      if (underwater) {
+        this._spawnAndDrawBubbles(ctx, actor, cx, pos, currentTime, charScale);
+      }
     }
 
     // ── Time badge ──
@@ -524,6 +533,104 @@ export class SeaWorld {
 
   redraw() {
     this.drawFrame(this.sim.currentTime);
+  }
+
+  // ── Bubble particle system ──────────────────────────────
+  // Bubbles exist in POSITION SPACE (simulation units), not screen space.
+  // They rise at a fixed rate (units per second) independently of the animal.
+  // If the animal zooms upward past its own bubbles, the bubbles stay put.
+
+  /** Bubble rise speed in position-units per second of simulation time */
+  static BUBBLE_RISE_SPEED = 0.8; // 0.8 ft/s — slow leisurely rise
+
+  /**
+   * Spawn a burst of bubbles every 2s while underwater, then draw all
+   * live bubbles for this actor.
+   */
+  _spawnAndDrawBubbles(ctx, actor, columnX, actorPos, time, charScale) {
+    const key = actor.id || actor.name;
+    if (!this._bubbleParticles.has(key)) {
+      this._bubbleParticles.set(key, { bubbles: [], lastBurstIndex: -1 });
+    }
+    const state = this._bubbleParticles.get(key);
+
+    // If time went backwards (rewind), prune future bubbles
+    state.bubbles = state.bubbles.filter(b => b.spawnTime <= time);
+    if (time < (state.lastBurstIndex * 2)) {
+      state.lastBurstIndex = Math.floor(time / 2) - 1;
+    }
+
+    // Spawn a burst every 2 simulation-seconds while underwater
+    const burstIndex = Math.floor(time / 2);
+    if (burstIndex > state.lastBurstIndex) {
+      state.lastBurstIndex = burstIndex;
+      const burstTime = burstIndex * 2;
+      // Spawn 5 bubbles at the actor's CURRENT position with slight offsets
+      const defs = [
+        { dPos: 0.1, dxFrac: -0.12, delay: 0.0,  wobble: 0,   r: 8.0 },
+        { dPos: 0.2, dxFrac: 0.15,  delay: 0.15, wobble: 1.5, r: 5.5 },
+        { dPos: 0.05, dxFrac: -0.2,  delay: 0.25, wobble: 3.0, r: 9.0 },
+        { dPos: 0.25, dxFrac: 0.08,  delay: 0.4,  wobble: 4.5, r: 6.5 },
+        { dPos: 0.15, dxFrac: -0.05, delay: 0.6,  wobble: 2.0, r: 7.0 },
+      ];
+      for (const d of defs) {
+        state.bubbles.push({
+          spawnPos: actorPos + d.dPos, // position (sim units) where bubble was born
+          spawnX: columnX + d.dxFrac * this.unitHeight, // screen X (column stays fixed)
+          spawnTime: burstTime + d.delay,
+          wobblePhase: d.wobble,
+          baseRadius: d.r,
+        });
+      }
+    }
+
+    // Draw all live bubbles
+    const riseSpeed = SeaWorld.BUBBLE_RISE_SPEED;
+    const toRemove = [];
+
+    for (let i = 0; i < state.bubbles.length; i++) {
+      const b = state.bubbles[i];
+      const age = time - b.spawnTime;
+      if (age < 0) continue; // delayed, not emitted yet
+
+      // Bubble's current position in simulation space — rises independently
+      const bubblePos = b.spawnPos + age * riseSpeed;
+
+      // Remove if it reached the surface (position >= 0)
+      if (bubblePos >= 0) {
+        toRemove.push(i);
+        continue;
+      }
+
+      // Convert to screen coordinates
+      const by = this.posToScreenY(bubblePos);
+      const wobble = Math.sin(age * Math.PI * 3 + b.wobblePhase) * 4 * charScale;
+      const bx = b.spawnX + wobble;
+
+      // Grow slightly as they rise (pressure decreases)
+      const radius = b.baseRadius * charScale * (1 + age * 0.12);
+
+      ctx.fillStyle = 'rgba(200, 230, 255, 0.45)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(bx, by, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Glossy highlight
+      if (radius > 2) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.beginPath();
+        ctx.arc(bx - radius * 0.2, by - radius * 0.25, radius * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Prune dead bubbles (reverse order so splice indices stay valid)
+    for (let i = toRemove.length - 1; i >= 0; i--) {
+      state.bubbles.splice(toRemove[i], 1);
+    }
   }
 
   destroy() {

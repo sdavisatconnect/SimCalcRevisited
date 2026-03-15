@@ -87,13 +87,19 @@ export class TiledGraphView {
   }
 
   _renderMiniGraph(container, student) {
+    const isElementaryVT = this.sim.edition === 'elementary' && this.graphType === 'velocity';
     const config = this.graphType === 'position'
       ? { xRange: { ...this.sim.timeRange }, yRange: { ...this.sim.posRange }, xLabel: '', yLabel: '' }
-      : { xRange: { ...this.sim.timeRange }, yRange: { ...this.sim.velRange }, xLabel: '', yLabel: '' };
+      : { xRange: { ...this.sim.timeRange }, yRange: { ...this.sim.velRange }, xLabel: '', yLabel: '',
+          ...(isElementaryVT ? { squareUnits: true } : {}) };
 
     // Smaller padding for mini graphs
     const renderer = new GraphRenderer(container, config);
     renderer.padding = { top: 4, right: 4, bottom: 4, left: 4 };
+    if (isElementaryVT) {
+      renderer.xTickStep = 1;
+      renderer.yTickStep = 1;
+    }
     renderer.refresh();
 
     for (const actor of student.actors) {
@@ -147,6 +153,12 @@ export class TiledGraphView {
   }
 
   _drawVelocityTrace(renderer, group, actor, color) {
+    // Elementary edition: draw unifix blocks instead of lines
+    if (this.sim.edition === 'elementary') {
+      this._drawVelocityBlocks(renderer, group, actor, color);
+      return;
+    }
+
     const pts = actor.positionFn.points;
     if (pts.length < 2) return;
 
@@ -161,6 +173,59 @@ export class TiledGraphView {
       line.setAttribute('stroke-width', '2');
       group.appendChild(line);
     }
+  }
+
+  /**
+   * Draw unifix-style velocity blocks for elementary edition.
+   */
+  _drawVelocityBlocks(renderer, group, actor, color) {
+    const pts = actor.positionFn.points;
+    if (pts.length < 2) return;
+
+    const tMin = Math.floor(pts[0].t);
+    const tMax = Math.ceil(pts[pts.length - 1].t);
+
+    for (let col = tMin; col < tMax; col++) {
+      const vel = this._getColumnVelocity(actor.positionFn, col);
+      if (vel === 0) continue;
+
+      const count = Math.abs(vel);
+      const sign = vel > 0 ? 1 : -1;
+
+      for (let i = 1; i <= count; i++) {
+        const row = i * sign;
+        const yTop = row > 0 ? row : row + 1;
+        const yBottom = row > 0 ? row - 1 : row;
+
+        const topLeft = renderer.toScreen(col, yTop);
+        const bottomRight = renderer.toScreen(col + 1, yBottom);
+
+        const gap = 1;
+        const x = topLeft.x + gap;
+        const y = topLeft.y + gap;
+        const w = Math.max(0, bottomRight.x - topLeft.x - gap * 2);
+        const h = Math.max(0, bottomRight.y - topLeft.y - gap * 2);
+
+        const rect = renderer.makeRect(x, y, w, h, 'unifix-block-fill');
+        rect.setAttribute('fill', color);
+        rect.setAttribute('opacity', '0.8');
+        group.appendChild(rect);
+      }
+    }
+  }
+
+  _getColumnVelocity(plf, t) {
+    const pts = plf.points;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const tStart = pts[i].t;
+      const tEnd = pts[i + 1].t;
+      if (t >= tStart && t + 1 <= tEnd + 0.001) {
+        const dt = tEnd - tStart;
+        if (dt === 0) return 0;
+        return Math.round((pts[i + 1].v - pts[i].v) / dt);
+      }
+    }
+    return 0;
   }
 
   _calculateGrid(n, W, H) {

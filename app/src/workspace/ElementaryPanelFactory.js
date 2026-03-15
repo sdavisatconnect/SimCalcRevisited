@@ -3,18 +3,25 @@ import { FrolicWorld } from '../animation/FrolicWorld.js';
 import { SeaWorld } from '../animation/SeaWorld.js';
 import { UnifixVelocityGraph } from '../graph/UnifixVelocityGraph.js';
 import { PositionGraph } from '../graph/PositionGraph.js';
+import { GraphScalePopover } from '../graph/GraphScalePopover.js';
 import { t } from '../i18n/strings.js';
 
 /**
  * Panel factory for the elementary edition.
- * Creates world, position (read-only), and velocity (unifix blocks) panels.
+ * Creates world, position, and velocity (unifix blocks) panels.
  * No acceleration panel.
+ *
+ * @param {object} [options]
+ * @param {boolean} [options.authorMode] - If true, position graph is editable
+ * @param {GraphInteractionManager} [options.graphInteractionManager] - For registering editable graphs
  */
 export class ElementaryPanelFactory {
-  constructor(sim, bus, blockInteraction) {
+  constructor(sim, bus, blockInteraction, options = {}) {
     this.sim = sim;
     this.bus = bus;
     this.blockInteraction = blockInteraction;
+    this.authorMode = options.authorMode || false;
+    this.graphInteractionManager = options.graphInteractionManager || null;
   }
 
   create(type, options = {}) {
@@ -28,15 +35,15 @@ export class ElementaryPanelFactory {
       height: options.height || 300,
       onClose: options.onClose,
       onFocus: options.onFocus,
+      bus: this.bus,
+      simulation: this.sim,
     });
-
-    const canvas = document.createElement('canvas');
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
 
     let component;
 
     switch (type) {
       case 'world': {
+        const canvas = document.createElement('canvas');
         panel.contentEl.appendChild(canvas);
         canvas.style.width = '100%';
         canvas.style.height = '100%';
@@ -49,22 +56,28 @@ export class ElementaryPanelFactory {
       }
 
       case 'position': {
-        panel.contentEl.appendChild(svg);
-        svg.style.width = '100%';
-        svg.style.height = '100%';
-        component = new PositionGraph(svg, this.sim, this.bus, [], { readOnly: true });
-        // Position graph is read-only in elementary — no interaction registered
+        const posOpts = this.authorMode ? {} : { readOnly: true };
+        component = new PositionGraph(panel.contentEl, this.sim, this.bus, [], posOpts);
+        if (this.authorMode && this.graphInteractionManager) {
+          this.graphInteractionManager.registerGraph(panel.id, component, 'position');
+        }
+        // Gear icon: present in author mode, hidden for students
+        if (!this.authorMode && component.scalePopover) {
+          component.scalePopover.gearBtn.style.display = 'none';
+          component.scalePopover.lockBtn.style.display = 'none';
+        }
         break;
       }
 
       case 'velocity': {
-        panel.contentEl.appendChild(svg);
-        svg.style.width = '100%';
-        svg.style.height = '100%';
-        component = new UnifixVelocityGraph(svg, this.sim, this.bus, []);
+        component = new UnifixVelocityGraph(panel.contentEl, this.sim, this.bus, []);
         // Register with block interaction handler
         if (this.blockInteraction) {
-          this.blockInteraction.registerGraph(panel.id, svg, component);
+          this.blockInteraction.registerGraph(panel.id, component.renderer.svg, component);
+        }
+        // Gear icon for author mode
+        if (this.authorMode) {
+          component.scalePopover = new GraphScalePopover(panel.contentEl, component.renderer, () => component.redraw());
         }
         break;
       }

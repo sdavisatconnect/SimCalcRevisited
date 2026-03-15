@@ -34,9 +34,12 @@ export class ChallengeMode {
     // Apply lock states with student restrictions
     ChallengeSerializer.applyChallengeLockStates(challengeData, this.workspace, true);
 
-    // Rename actors to student's initials
+    // Rename student actors to student's initials (skip reference actors)
+    const refIds = new Set((challengeData.referenceActors || []).map(r => r.id));
     for (const actor of this.sim.actors) {
-      actor.name = initials;
+      if (!refIds.has(actor.id)) {
+        actor.name = initials;
+      }
     }
     this.bus.emit('actors:changed');
 

@@ -113,7 +113,8 @@ export class UnifixBlockInteraction {
     if (!toolData) return;
     let parsed;
     try { parsed = JSON.parse(toolData); } catch { return; }
-    if (parsed.tool !== 'add-block') return;
+    const blockTools = ['add-block', 'add-segment', 'add-ramp-up', 'add-ramp-down'];
+    if (!blockTools.includes(parsed.tool)) return;
 
     e.preventDefault();
     e.stopPropagation();
@@ -161,10 +162,49 @@ export class UnifixBlockInteraction {
   _handleMouseDown(e, entry) {
     // Find which block was clicked
     const block = this._findBlockAt(e, entry);
-    if (!block) return;
 
     const actor = this._getEditableActor(entry);
     if (!actor) return;
+
+    // Click on empty space in pointer mode → place a new block
+    if (!block && this._activeTool === 'pointer') {
+      const { col, row } = this._screenToGridCell(e, entry);
+      if (col < 0 || col >= (this.sim.timeRange.max || 10)) return;
+      // Only place if within the plot area
+      const data = this._screenToData(e, entry);
+      const plotArea = entry.component.graphRenderer.plotArea;
+      const rect = entry.svg.getBoundingClientRect();
+      const localX = e.clientX - rect.left;
+      const localY = e.clientY - rect.top;
+      if (localX < plotArea.x || localX > plotArea.x + plotArea.w) return;
+      if (localY < plotArea.y || localY > plotArea.y + plotArea.h) return;
+
+      const sign = data.v >= 0 ? 1 : -1;
+      const model = new UnifixBlockModel(actor);
+      const currentHeight = model.getBlockCount(col);
+
+      if (model.hasConflict(col)) {
+        const conflict = model.getConflicts().get(col);
+        if (sign > 0) conflict.pos++;
+        else conflict.neg++;
+        model.setConflict(col, conflict.pos, conflict.neg);
+      } else if (currentHeight === 0) {
+        model.setColumn(col, sign);
+      } else if (Math.sign(currentHeight) === sign) {
+        model.setColumn(col, currentHeight + sign);
+      } else {
+        const posCount = currentHeight > 0 ? Math.abs(currentHeight) : 1;
+        const negCount = currentHeight < 0 ? Math.abs(currentHeight) : 1;
+        model.setConflict(col, posCount, negCount);
+      }
+      model.rebuildPLF();
+      this.bus.emit('actor:edited', { actorId: actor.id });
+      entry.component.redraw();
+      e.preventDefault();
+      return;
+    }
+
+    if (!block) return;
 
     const { col, row } = block;
     const model = new UnifixBlockModel(actor);

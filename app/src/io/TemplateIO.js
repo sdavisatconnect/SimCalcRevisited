@@ -106,6 +106,102 @@ export class TemplateIO {
   }
 
   /**
+   * Convert a v2 challenge (from ChallengeTemplateIO) into the v1 format
+   * that reconstruct() expects.
+   *
+   * @param {object} v2 - v2 challenge data with seed, referenceActors, studentActorTemplate, studentConfig
+   * @returns {object} v1-compatible data with simulation, actors, panels
+   */
+  static challengeV2toV1(v2) {
+    const seed = v2.seed || {};
+    const simulation = {
+      worldType: seed.worldType || 'frolic',
+      timeRange: seed.timeRange || { min: 0, max: 10 },
+      posRange: seed.posRange || { min: -20, max: 20 },
+      velRange: seed.velRange || { min: -5, max: 5 },
+      accelRange: seed.accelRange || { min: -5, max: 5 },
+      currentTime: 0,
+      playbackSpeed: 1,
+    };
+
+    // Build actors: reference actors (read-only) + one student actor from template
+    const actors = [];
+
+    // Reference actors
+    for (const ref of (v2.referenceActors || [])) {
+      actors.push({
+        id: ref.id || 'ref-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+        name: ref.name || 'Reference',
+        color: ref.color || '#e74c3c',
+        animalType: ref.animalType || null,
+        positionPoints: ref.positionPoints || [{ t: 0, v: 0 }],
+        accelerations: ref.accelerations || [],
+      });
+    }
+
+    // Student actor from template
+    const tmpl = v2.studentActorTemplate || {};
+    actors.push({
+      id: 'student-' + Date.now(),
+      name: 'Student',
+      color: '#27ae60',
+      animalType: tmpl.animalType || (actors[0] && actors[0].animalType) || 'puppy',
+      positionPoints: tmpl.positionPoints || [{ t: 0, v: 0 }],
+      accelerations: tmpl.accelerations || [],
+    });
+
+    // Build panels from studentConfig.visiblePanels
+    const visiblePanels = (v2.studentConfig && v2.studentConfig.visiblePanels) || ['world', 'position', 'velocity'];
+    const editablePanels = (v2.studentConfig && v2.studentConfig.editablePanels) || ['velocity'];
+    const linkage = v2.panelActorLinkage || {};
+    console.log('[DEBUG v2toV1] panelActorLinkage from challenge:', JSON.stringify(linkage));
+    console.log('[DEBUG v2toV1] visiblePanels:', visiblePanels);
+
+    // Map old author actor IDs to the new actor IDs created above
+    const refIdMap = {};
+    const oldRefActors = v2.referenceActors || [];
+    const newRefActors = actors.filter(a => a.name === 'Reference' || a.id.startsWith('ref-'));
+    for (let i = 0; i < oldRefActors.length && i < newRefActors.length; i++) {
+      refIdMap[oldRefActors[i].id] = newRefActors[i].id;
+    }
+    const studentActor = actors.find(a => a.id.startsWith('student-'));
+    const oldStudentId = 'student-template';
+    const allActorIds = actors.map(a => a.id);
+
+    const graphScales = v2.graphScales || {};
+
+    const panels = visiblePanels.map(type => {
+      let linkedActorIds;
+      if (linkage[type]) {
+        // Remap author-time IDs to the newly created actor IDs
+        linkedActorIds = linkage[type]
+          .map(oldId => {
+            const mapped = refIdMap[oldId] || (oldId === oldStudentId && studentActor ? studentActor.id : null);
+            console.log(`[DEBUG v2toV1] panel=${type} oldId=${oldId} → mapped=${mapped}`);
+            return mapped;
+          })
+          .filter(Boolean);
+      } else {
+        // No linkage saved — default: all actors on all panels
+        console.log(`[DEBUG v2toV1] panel=${type} NO linkage, using all actors`);
+        linkedActorIds = allActorIds;
+      }
+      const panelData = {
+        type,
+        linkedActorIds,
+        isLocked: !editablePanels.includes(type),
+      };
+      // Carry per-graph scale settings (axis ranges + tick steps)
+      if (graphScales[type]) {
+        panelData.graphScale = graphScales[type];
+      }
+      return panelData;
+    });
+
+    return { simulation, actors, panels };
+  }
+
+  /**
    * Reconstruct the full application state from loaded data.
    *
    * @param {object} data - Parsed JSON from loadFromFile
@@ -117,6 +213,11 @@ export class TemplateIO {
    * @param {Function} createPanelFn - (type, opts) => Panel
    */
   static reconstruct(data, sim, workspace, panelFactory, interactionMgr, bus, createPanelFn) {
+    // Auto-convert v2 challenge data to v1 format
+    if (data && data.version === 2 && data.seed && !data.simulation) {
+      data = TemplateIO.challengeV2toV1(data);
+    }
+
     if (!data || !data.simulation || !data.actors) {
       console.error('Invalid template data');
       return;
@@ -166,6 +267,12 @@ export class TemplateIO {
     bus.emit('actors:changed');
 
     // 7. Recreate panels
+    // Collect deferred scale settings — Workspace.addPanel() schedules a
+    // requestAnimationFrame that calls component.refresh(), which in some
+    // components (e.g. UnifixVelocityGraph) resets ranges.  We must apply
+    // custom graph scales AFTER that rAF fires.
+    const deferredScales = [];
+
     for (const pd of data.panels) {
       const panel = createPanelFn(pd.type, {
         x: pd.x,
@@ -180,10 +287,10 @@ export class TemplateIO {
         panel.setActiveActor(pd.activeActorId);
       }
 
-      // Restore custom graph ranges
-      if (pd.customRanges && panel.component && panel.component.renderer) {
-        panel.component.renderer.setRanges(pd.customRanges.xRange, pd.customRanges.yRange);
-        if (panel.component.redraw) panel.component.redraw();
+      // Defer custom graph ranges — will apply after rAF refresh
+      const scale = pd.customRanges || pd.graphScale;
+      if (scale && panel.component && panel.component.renderer) {
+        deferredScales.push({ panel, scale });
       }
 
       // Restore collapsed state
@@ -197,6 +304,22 @@ export class TemplateIO {
           panel.component.scalePopover.toggleLock();
         }
       }
+    }
+
+    // Apply graph scales after the addPanel rAF refresh has fired
+    if (deferredScales.length > 0) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          for (const { panel, scale } of deferredScales) {
+            panel.component.renderer.setRanges(
+              scale.xRange,
+              scale.yRange,
+              { xTickStep: scale.xTickStep || null, yTickStep: scale.yTickStep || null }
+            );
+            if (panel.component.redraw) panel.component.redraw();
+          }
+        });
+      });
     }
 
     // 8. Redraw everything

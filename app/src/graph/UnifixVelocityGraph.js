@@ -1,4 +1,5 @@
 import { GraphRenderer } from './GraphRenderer.js';
+import { GraphScalePopover } from './GraphScalePopover.js';
 import { UnifixBlockModel } from './UnifixBlockModel.js';
 import { t } from '../i18n/strings.js';
 

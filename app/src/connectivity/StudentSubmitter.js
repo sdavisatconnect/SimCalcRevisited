@@ -22,13 +22,16 @@ export class StudentSubmitter {
     const submissionData = {
       initials: this.initials,
       data: {
-        actors: simulation.actors.map(actor => ({
-          id: actor.id,
-          name: this.initials,
-          color: actor.color,
-          positionPoints: actor.positionFn.points.map(p => ({ t: p.t, v: p.v })),
-          accelerations: actor.positionFn.accelerations || [],
-        })),
+        actors: simulation.actors
+          .filter(actor => !actor.id.startsWith('ref-'))
+          .map(actor => ({
+            id: actor.id,
+            name: this.initials,
+            color: actor.color,
+            animalType: actor.animalType || null,
+            positionPoints: actor.positionFn.points.map(p => ({ t: p.t, v: p.v })),
+            accelerations: actor.positionFn.accelerations || [],
+          })),
       },
       timestamp: { '.sv': 'timestamp' },
       version: this.version,
