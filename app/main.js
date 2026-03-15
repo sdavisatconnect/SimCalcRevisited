@@ -484,6 +484,7 @@ bus.on('challenge:join-request', async () => {
 // --- Teacher Results Display ---
 let activeResultsCtrl = null;
 let activeResultsRoomCode = null;  // Firebase room code, or null
+let activeResultsChallengeData = null; // stored so resultsConfig is available for collect-again
 let practiceCount = 0;             // practice mode student count (0 = not practice)
 let activeRoomCodeBar = null;      // persistent room code banner during results
 
@@ -495,8 +496,11 @@ bus.on('challenge:show-results', ({ submissions, challengeData, roomCode }) => {
     return;
   }
 
+  // Store challengeData so resultsConfig is available for collect-again
+  if (challengeData) activeResultsChallengeData = challengeData;
+
   activeResultsCtrl = new ResultsViewController(bus, workspace, sim, createPanel, interactionMgr);
-  activeResultsCtrl.enterResultsMode(submissions);
+  activeResultsCtrl.enterResultsMode(submissions, challengeData?.resultsConfig);
 
   // Show "Collect Again" for both live broadcasts and practice mode
   if (roomCode === 'practice') {
@@ -517,7 +521,7 @@ bus.on('challenge:show-results', ({ submissions, challengeData, roomCode }) => {
         if (!subs) { alert('No submissions found.'); return; }
         if (activeResultsCtrl) activeResultsCtrl.exitResultsMode();
         activeResultsCtrl = new ResultsViewController(bus, workspace, sim, createPanel, interactionMgr);
-        activeResultsCtrl.enterResultsMode(subs);
+        activeResultsCtrl.enterResultsMode(subs, activeResultsChallengeData?.resultsConfig);
       },
       onCloseRoom: async () => {
         await roomManager.closeRoom(roomCode);
@@ -564,7 +568,7 @@ collectAgainBtn.addEventListener('click', async () => {
       activeResultsCtrl.exitResultsMode();
     }
     activeResultsCtrl = new ResultsViewController(bus, workspace, sim, createPanel, interactionMgr);
-    activeResultsCtrl.enterResultsMode(submissions);
+    activeResultsCtrl.enterResultsMode(submissions, activeResultsChallengeData?.resultsConfig);
   } catch (err) {
     console.error('Failed to collect submissions:', err);
     alert('Failed to collect. Check your connection and try again.');
@@ -664,9 +668,12 @@ bus.on('session:reopen-request', () => {
     // Set target segments if any
     sim.targetSegments = (challengeData.targetSegments || []).map(s => ({ ...s }));
 
+    // Store for collect-again resultsConfig access
+    activeResultsChallengeData = challengeData;
+
     // Enter results mode
     activeResultsCtrl = new ResultsViewController(bus, workspace, sim, createPanel, interactionMgr);
-    activeResultsCtrl.enterResultsMode(submissions);
+    activeResultsCtrl.enterResultsMode(submissions, challengeData?.resultsConfig);
 
     // Show room code bar
     activeResultsRoomCode = roomCode;
@@ -677,7 +684,7 @@ bus.on('session:reopen-request', () => {
         if (!subs) { alert('No submissions found.'); return; }
         if (activeResultsCtrl) activeResultsCtrl.exitResultsMode();
         activeResultsCtrl = new ResultsViewController(bus, workspace, sim, createPanel, interactionMgr);
-        activeResultsCtrl.enterResultsMode(subs);
+        activeResultsCtrl.enterResultsMode(subs, activeResultsChallengeData?.resultsConfig);
       },
       onCloseRoom: async () => {
         await roomManager.closeRoom(roomCode);

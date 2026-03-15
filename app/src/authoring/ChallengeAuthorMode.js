@@ -131,9 +131,12 @@ export class ChallengeAuthorMode {
 
     this.bus.emit('actors:changed');
 
-    // Create panels for all visible panel types
+    // Create panels for all visible panel types (with per-panel actor linkage)
     const visible = new Set(challengeData.studentConfig.visiblePanels || ['world', 'position']);
-    this._createDefaultPanels(visible);
+    this._createDefaultPanels(visible, challengeData.panelActorLinkage);
+
+    // Restore graph scales from saved challenge
+    this._applyGraphScales(challengeData.graphScales);
 
     // Restore config panel values
     if (this.configPanel) {
@@ -551,13 +554,37 @@ export class ChallengeAuthorMode {
     this.bus.emit('actors:changed');
   }
 
-  _createDefaultPanels(visibleSet) {
+  _createDefaultPanels(visibleSet, panelActorLinkage) {
     const types = visibleSet || new Set(['world', 'position', 'velocity']);
     const allIds = this.sim.actors.map(a => a.id);
-    if (types.has('world'))    this._createPanel('world',    { actorIds: allIds });
-    if (types.has('position')) this._createPanel('position', { actorIds: allIds });
-    if (types.has('velocity')) this._createPanel('velocity', { actorIds: allIds });
-    if (types.has('acceleration')) this._createPanel('acceleration', { actorIds: allIds });
+    for (const type of ['world', 'position', 'velocity', 'acceleration']) {
+      if (!types.has(type)) continue;
+      const ids = (panelActorLinkage && panelActorLinkage[type]) || allIds;
+      this._createPanel(type, { actorIds: ids });
+    }
+  }
+
+  /**
+   * Apply saved graph scales to workspace panels (deferred to allow initial render).
+   * @param {object} graphScales - map of panel type → {xRange, yRange, xTickStep, yTickStep}
+   */
+  _applyGraphScales(graphScales) {
+    if (!graphScales) return;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        for (const panel of this.workspace.panels) {
+          const scale = graphScales[panel.type];
+          if (scale && panel.component && panel.component.renderer) {
+            panel.component.renderer.setRanges(
+              scale.xRange,
+              scale.yRange,
+              { xTickStep: scale.xTickStep || null, yTickStep: scale.yTickStep || null }
+            );
+            if (panel.component.redraw) panel.component.redraw();
+          }
+        }
+      });
+    });
   }
 
   // --- Serialization ---
@@ -636,7 +663,10 @@ export class ChallengeAuthorMode {
     this.bus.emit('actors:changed');
 
     const visible = new Set(data.studentConfig.visiblePanels || ['world', 'position']);
-    this._createDefaultPanels(visible);
+    this._createDefaultPanels(visible, data.panelActorLinkage);
+
+    // Restore graph scales from loaded challenge
+    this._applyGraphScales(data.graphScales);
 
     if (this.configPanel) {
       this.configPanel.loadFromChallenge(data);
