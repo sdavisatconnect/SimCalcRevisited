@@ -121,30 +121,41 @@ export class Panel {
 
   _setupDrag() {
     let startX, startY, startLeft, startTop;
+    let dragPending = false;
+    const DRAG_THRESHOLD = 6; // px — must move this far before drag commits
 
     const onPointerDown = (e) => {
-      // Don't start drag if clicking interactive elements
+      // Never drag from close button or open dropdown
       if (e.target === this.closeBtn
-        || e.target.closest('.actor-selector-trigger')
-        || e.target.closest('.actor-dropdown')) return;
-      e.preventDefault();
+        || e.target.closest('.actor-dropdown.open')) return;
+      // Record start position but don't commit to drag yet —
+      // a short tap should still open the actor dropdown
       startX = e.clientX;
       startY = e.clientY;
       startLeft = parseInt(this.el.style.left);
       startTop = parseInt(this.el.style.top);
-      this.el.classList.add('dragging');
+      dragPending = true;
       this.titleBar.setPointerCapture(e.pointerId);
     };
 
     const onPointerMove = (e) => {
-      if (!this.el.classList.contains('dragging')) return;
+      if (!dragPending && !this.el.classList.contains('dragging')) return;
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
+
+      if (dragPending) {
+        // Only commit to drag after moving beyond threshold
+        if (Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) return;
+        dragPending = false;
+        this.el.classList.add('dragging');
+      }
+
       this.el.style.left = (startLeft + dx) + 'px';
       this.el.style.top = Math.max(0, startTop + dy) + 'px';
     };
 
     const onPointerUp = () => {
+      dragPending = false;
       this.el.classList.remove('dragging');
     };
 
