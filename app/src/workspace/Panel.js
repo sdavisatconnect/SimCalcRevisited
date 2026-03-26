@@ -28,6 +28,7 @@ export class Panel {
     this.el.style.width = width + 'px';
     this.el.style.height = height + 'px';
     this.el.dataset.panelId = id;
+    this.el.dataset.panelType = type;
 
     // Title bar
     this.titleBar = document.createElement('div');

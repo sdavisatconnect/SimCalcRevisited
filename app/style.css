@@ -52,7 +52,7 @@ body {
 .workspace {
   flex: 1;
   position: relative;
-  overflow: hidden;
+  overflow: auto;
   background:
     radial-gradient(circle at 1px 1px, rgba(255,255,255,0.03) 1px, transparent 0)
     0 0 / 20px 20px;
@@ -3047,4 +3047,113 @@ body {
 }
 .challenge-view-results:hover {
   background: #2980b9 !important;
+}
+
+/* ===== Responsive: Phone (<768px) ===== */
+@media (max-width: 767px) {
+  /* Stack panels vertically instead of free-floating */
+  .workspace {
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .panel {
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 160px;
+    flex-shrink: 0;
+  }
+
+  /* World panel: compact — it's for viewing, not editing */
+  .panel[data-panel-type="world"] {
+    min-height: 140px;
+  }
+  .panel[data-panel-type="world"] .panel-content canvas {
+    min-height: 120px;
+  }
+
+  /* Position graph: medium — read-only in elementary, secondary in revisited */
+  .panel[data-panel-type="position"] .panel-content svg {
+    min-height: 180px;
+  }
+
+  /* Velocity graph: largest — this is the primary editing surface */
+  .panel[data-panel-type="velocity"] .panel-content svg {
+    min-height: 280px;
+  }
+
+  /* Hide resize handle — panels auto-size in stacked mode */
+  .panel-resize-handle {
+    display: none;
+  }
+
+  /* Disable drag cursor on titlebar — no dragging in stacked mode */
+  .panel-titlebar {
+    cursor: default;
+  }
+
+  /* Sidebar: collapse to bottom drawer above controls */
+  .main-area {
+    flex-direction: column;
+  }
+
+  .tool-sidebar {
+    width: 100%;
+    max-height: 120px;
+    overflow-y: auto;
+    border-left: none;
+    border-top: 1px solid #0f3460;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 4px 8px;
+  }
+
+  .sidebar-section {
+    border-bottom: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .sidebar-section-header {
+    padding: 2px 6px;
+    font-size: 9px;
+  }
+
+  /* Controls bar: compact for phone */
+  .controls {
+    gap: 6px;
+    padding: 6px 8px;
+  }
+
+  .controls button {
+    width: 34px;
+    height: 30px;
+    font-size: 14px;
+  }
+
+  /* Palette bar: wrap if needed */
+  .palette-bar {
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 4px 8px;
+    min-height: 28px;
+  }
+}
+
+/* ===== Responsive: Small tablet portrait (768–1024px) ===== */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .tool-sidebar {
+    width: 110px;
+  }
+
+  .panel {
+    min-width: 160px;
+  }
 }

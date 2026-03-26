@@ -642,3 +642,48 @@
   display: block;
   margin: 0 auto;
 }
+
+/* ===== Responsive: Phone (<768px) ===== */
+@media (max-width: 767px) {
+  /* Elementary: P/T is read-only, keep it compact */
+  .elementary-edition .panel[data-panel-type="position"] .panel-content svg {
+    min-height: 140px;
+  }
+
+  /* Elementary: V/T is the main editing surface — make it large with square cells */
+  .elementary-edition .panel[data-panel-type="velocity"] .panel-content svg {
+    min-height: 320px;
+  }
+
+  /* Elementary sidebar: horizontal strip */
+  .elementary-edition .tool-sidebar {
+    width: 100%;
+    max-height: 100px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-left: none;
+    border-top: 1px solid #b0d4f1;
+    padding: 4px 8px;
+    gap: 6px;
+    align-items: center;
+  }
+
+  /* World selector card: fit phone width */
+  .elementary-selector-card {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    padding: 16px !important;
+  }
+
+  /* Animal grid: 3 columns on phone instead of 5 */
+  .elementary-selector-card .selector-step .animal-grid,
+  .elementary-selector-card .selector-step > div:nth-child(2) {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
+  /* Join dialog: fit phone */
+  .elementary-edition .join-dialog-card {
+    max-width: 95vw !important;
+    width: 95vw !important;
+  }
+}
