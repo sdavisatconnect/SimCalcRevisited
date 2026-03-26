@@ -136,6 +136,7 @@ export class Panel {
       startTop = parseInt(this.el.style.top);
       dragPending = true;
       this.titleBar.setPointerCapture(e.pointerId);
+      e.preventDefault(); // Prevent iOS Safari from stealing the touch for scrolling
     };
 
     const onPointerMove = (e) => {
