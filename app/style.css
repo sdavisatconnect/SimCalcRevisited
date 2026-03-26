@@ -10,6 +10,7 @@ body {
   color: #eee;
   overflow: hidden;
   height: 100vh;
+  touch-action: manipulation;
 }
 
 /* ===== App Shell ===== */
@@ -17,6 +18,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  overscroll-behavior: none;
 }
 
 /* ===== Palette Bar (top, slim — actors only) ===== */
@@ -606,6 +608,7 @@ body {
   user-select: none;
   flex-shrink: 0;
   min-height: 28px;
+  touch-action: none;
 }
 
 .panel-title-text {
@@ -785,12 +788,14 @@ body {
 
 .panel-content canvas {
   display: block;
+  touch-action: none;
 }
 
 .panel-content svg {
   width: 100%;
   height: 100%;
   display: block;
+  touch-action: none;
 }
 
 /* Panel resize handle */
@@ -802,6 +807,7 @@ body {
   height: 16px;
   cursor: nwse-resize;
   z-index: 5;
+  touch-action: none;
 }
 
 .panel-resize-handle::after {

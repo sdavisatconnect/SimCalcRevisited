@@ -295,7 +295,7 @@ export class FrolicWorld {
   _setupPanning() {
     const canvas = this.canvas;
 
-    canvas.addEventListener('mousedown', (e) => {
+    canvas.addEventListener('pointerdown', (e) => {
       // Only pan with left button and no modifier keys
       if (e.button !== 0 || e.ctrlKey || e.shiftKey) return;
       this._panState = {
@@ -304,10 +304,11 @@ export class FrolicWorld {
         startMax: this.sim.posRange.max,
       };
       canvas.style.cursor = 'grabbing';
+      canvas.setPointerCapture(e.pointerId);
       e.preventDefault();
     });
 
-    canvas.addEventListener('mousemove', (e) => {
+    canvas.addEventListener('pointermove', (e) => {
       if (!this._panState) {
         canvas.style.cursor = 'grab';
         return;
@@ -329,8 +330,8 @@ export class FrolicWorld {
       this._panState = null;
       canvas.style.cursor = 'grab';
     };
-    canvas.addEventListener('mouseup', endPan);
-    canvas.addEventListener('mouseleave', endPan);
+    canvas.addEventListener('pointerup', endPan);
+    canvas.addEventListener('lostpointercapture', endPan);
 
     canvas.style.cursor = 'grab';
   }

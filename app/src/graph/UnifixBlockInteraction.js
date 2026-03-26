@@ -36,19 +36,19 @@ export class UnifixBlockInteraction {
     entry.listeners.dragleave = (e) => this._handleToolDragLeave(e, entry);
     entry.listeners.drop = (e) => this._handleToolDrop(e, entry);
 
-    // Mouse handlers for block manipulation (drag-to-move + eraser click)
-    entry.listeners.mousedown = (e) => this._handleMouseDown(e, entry);
-    entry.listeners.mousemove = (e) => this._handleMouseMove(e, entry);
-    entry.listeners.mouseup = (e) => this._handleMouseUp(e, entry);
-    entry.listeners.mouseleave = (e) => this._handleMouseLeave(e, entry);
+    // Pointer handlers for block manipulation (drag-to-move + eraser click)
+    entry.listeners.pointerdown = (e) => this._handlePointerDown(e, entry);
+    entry.listeners.pointermove = (e) => this._handlePointerMove(e, entry);
+    entry.listeners.pointerup = (e) => this._handlePointerUp(e, entry);
+    entry.listeners.lostpointercapture = (e) => this._handlePointerCancel(e, entry);
 
     svg.addEventListener('dragover', entry.listeners.dragover);
     svg.addEventListener('dragleave', entry.listeners.dragleave);
     svg.addEventListener('drop', entry.listeners.drop);
-    svg.addEventListener('mousedown', entry.listeners.mousedown);
-    svg.addEventListener('mousemove', entry.listeners.mousemove);
-    svg.addEventListener('mouseup', entry.listeners.mouseup);
-    svg.addEventListener('mouseleave', entry.listeners.mouseleave);
+    svg.addEventListener('pointerdown', entry.listeners.pointerdown);
+    svg.addEventListener('pointermove', entry.listeners.pointermove);
+    svg.addEventListener('pointerup', entry.listeners.pointerup);
+    svg.addEventListener('lostpointercapture', entry.listeners.lostpointercapture);
 
     this.graphs.set(panelId, entry);
   }
@@ -157,9 +157,9 @@ export class UnifixBlockInteraction {
     entry.component.redraw();
   }
 
-  // ──── Mouse: block drag-to-move (pointer) / click-to-remove (eraser) ────
+  // ──── Pointer: block drag-to-move (pointer) / click-to-remove (eraser) ────
 
-  _handleMouseDown(e, entry) {
+  _handlePointerDown(e, entry) {
     // Find which block was clicked
     const block = this._findBlockAt(e, entry);
 
@@ -271,6 +271,7 @@ export class UnifixBlockInteraction {
       entry.component.redraw();
       entry.component.showGhost(col, row, actor.color);
       entry.svg.style.cursor = 'grabbing';
+      entry.svg.setPointerCapture(e.pointerId);
       e.preventDefault();
       return;
     }
@@ -290,11 +291,12 @@ export class UnifixBlockInteraction {
     // Show ghost at current position
     entry.component.showGhost(col, row, actor.color);
     entry.svg.style.cursor = 'grabbing';
+    entry.svg.setPointerCapture(e.pointerId);
 
     e.preventDefault();
   }
 
-  _handleMouseMove(e, entry) {
+  _handlePointerMove(e, entry) {
     if (!this._dragState || this._dragState.entry !== entry) return;
 
     const { col } = this._screenToGridCell(e, entry);
@@ -316,7 +318,7 @@ export class UnifixBlockInteraction {
     entry.component.showGhost(col, targetRow, this._dragState.actor.color);
   }
 
-  _handleMouseUp(e, entry) {
+  _handlePointerUp(e, entry) {
     if (!this._dragState || this._dragState.entry !== entry) return;
 
     entry.component.clearGhost();
@@ -352,7 +354,7 @@ export class UnifixBlockInteraction {
     entry.component.redraw();
   }
 
-  _handleMouseLeave(e, entry) {
+  _handlePointerCancel(e, entry) {
     if (!this._dragState || this._dragState.entry !== entry) return;
 
     // Cancel drag — return block to source

@@ -90,8 +90,8 @@ export class Panel {
     // --- Drop target for actor chips from palette ---
     this._setupDropTarget();
 
-    // --- Focus on click ---
-    this.el.addEventListener('mousedown', () => {
+    // --- Focus on click/touch ---
+    this.el.addEventListener('pointerdown', () => {
       if (this.onFocus) this.onFocus(this);
       if (this.bus) this.bus.emit('panel:focused', { panel: this });
     });
@@ -105,7 +105,7 @@ export class Panel {
         this._closeDropdown();
       }
     };
-    document.addEventListener('mousedown', this._globalClickHandler);
+    document.addEventListener('pointerdown', this._globalClickHandler);
 
     // Re-render trigger when actors change globally
     if (this.bus) {
@@ -122,7 +122,7 @@ export class Panel {
   _setupDrag() {
     let startX, startY, startLeft, startTop;
 
-    const onMouseDown = (e) => {
+    const onPointerDown = (e) => {
       // Don't start drag if clicking interactive elements
       if (e.target === this.closeBtn
         || e.target.closest('.actor-selector-trigger')
@@ -133,30 +133,30 @@ export class Panel {
       startLeft = parseInt(this.el.style.left);
       startTop = parseInt(this.el.style.top);
       this.el.classList.add('dragging');
-      document.addEventListener('mousemove', onMouseMove);
-      document.addEventListener('mouseup', onMouseUp);
+      this.titleBar.setPointerCapture(e.pointerId);
     };
 
-    const onMouseMove = (e) => {
+    const onPointerMove = (e) => {
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
       this.el.style.left = (startLeft + dx) + 'px';
       this.el.style.top = Math.max(0, startTop + dy) + 'px';
     };
 
-    const onMouseUp = () => {
+    const onPointerUp = () => {
       this.el.classList.remove('dragging');
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
     };
 
-    this.titleBar.addEventListener('mousedown', onMouseDown);
+    this.titleBar.addEventListener('pointerdown', onPointerDown);
+    this.titleBar.addEventListener('pointermove', onPointerMove);
+    this.titleBar.addEventListener('pointerup', onPointerUp);
+    this.titleBar.addEventListener('lostpointercapture', onPointerUp);
   }
 
   _setupResize() {
     let startX, startY, startW, startH;
 
-    const onMouseDown = (e) => {
+    const onPointerDown = (e) => {
       e.preventDefault();
       e.stopPropagation();
       startX = e.clientX;
@@ -164,28 +164,28 @@ export class Panel {
       startW = this.el.offsetWidth;
       startH = this.el.offsetHeight;
       this.el.classList.add('resizing');
-      document.addEventListener('mousemove', onMouseMove);
-      document.addEventListener('mouseup', onMouseUp);
+      this.resizeHandle.setPointerCapture(e.pointerId);
     };
 
-    const onMouseMove = (e) => {
+    const onPointerMove = (e) => {
       const w = Math.max(200, startW + (e.clientX - startX));
       const h = Math.max(120, startH + (e.clientY - startY));
       this.el.style.width = w + 'px';
       this.el.style.height = h + 'px';
     };
 
-    const onMouseUp = () => {
+    const onPointerUp = () => {
       this.el.classList.remove('resizing');
       this._savedHeight = this.el.offsetHeight;
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
       if (this.component && this.component.refresh) {
         this.component.refresh();
       }
     };
 
-    this.resizeHandle.addEventListener('mousedown', onMouseDown);
+    this.resizeHandle.addEventListener('pointerdown', onPointerDown);
+    this.resizeHandle.addEventListener('pointermove', onPointerMove);
+    this.resizeHandle.addEventListener('pointerup', onPointerUp);
+    this.resizeHandle.addEventListener('lostpointercapture', onPointerUp);
   }
 
   _setupDropTarget() {
@@ -396,7 +396,7 @@ export class Panel {
   }
 
   destroy() {
-    document.removeEventListener('mousedown', this._globalClickHandler);
+    document.removeEventListener('pointerdown', this._globalClickHandler);
     if (this.component && this.component.destroy) {
       this.component.destroy();
     }

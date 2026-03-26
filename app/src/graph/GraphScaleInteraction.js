@@ -16,13 +16,14 @@ export class GraphScaleInteraction {
     this._startMouse = null;
     this._startRange = null;
 
-    this._onMouseDown = this._onMouseDown.bind(this);
-    this._onMouseMove = this._onMouseMove.bind(this);
-    this._onMouseUp = this._onMouseUp.bind(this);
-    this._onMouseMoveHover = this._onMouseMoveHover.bind(this);
+    this._onPointerDown = this._onPointerDown.bind(this);
+    this._onPointerMove = this._onPointerMove.bind(this);
+    this._onPointerUp = this._onPointerUp.bind(this);
 
-    this.renderer.svg.addEventListener('mousedown', this._onMouseDown);
-    this.renderer.svg.addEventListener('mousemove', this._onMouseMoveHover);
+    this.renderer.svg.addEventListener('pointerdown', this._onPointerDown);
+    this.renderer.svg.addEventListener('pointermove', this._onPointerMove);
+    this.renderer.svg.addEventListener('pointerup', this._onPointerUp);
+    this.renderer.svg.addEventListener('lostpointercapture', this._onPointerUp);
   }
 
   _hitRegion(e) {
@@ -42,19 +43,7 @@ export class GraphScaleInteraction {
     return null;
   }
 
-  _onMouseMoveHover(e) {
-    if (this._dragging) return;
-    const region = this._hitRegion(e);
-    if (region === 'x') {
-      this.renderer.svg.style.cursor = e.shiftKey ? 'col-resize' : 'ew-resize';
-    } else if (region === 'y') {
-      this.renderer.svg.style.cursor = e.shiftKey ? 'row-resize' : 'ns-resize';
-    } else {
-      this.renderer.svg.style.cursor = '';
-    }
-  }
-
-  _onMouseDown(e) {
+  _onPointerDown(e) {
     // Don't intercept clicks on control points — let the graph interaction handle those
     if (e.target.classList.contains('control-point')) return;
 
@@ -76,12 +65,22 @@ export class GraphScaleInteraction {
       this.renderer.svg.style.cursor = this._mode === 'zoom' ? 'row-resize' : 'ns-resize';
     }
 
-    window.addEventListener('mousemove', this._onMouseMove);
-    window.addEventListener('mouseup', this._onMouseUp);
+    this.renderer.svg.setPointerCapture(e.pointerId);
   }
 
-  _onMouseMove(e) {
-    if (!this._dragging) return;
+  _onPointerMove(e) {
+    if (!this._dragging) {
+      // Hover cursor feedback
+      const region = this._hitRegion(e);
+      if (region === 'x') {
+        this.renderer.svg.style.cursor = e.shiftKey ? 'col-resize' : 'ew-resize';
+      } else if (region === 'y') {
+        this.renderer.svg.style.cursor = e.shiftKey ? 'row-resize' : 'ns-resize';
+      } else {
+        this.renderer.svg.style.cursor = '';
+      }
+      return;
+    }
 
     const p = this.renderer.plotArea;
 
@@ -141,20 +140,18 @@ export class GraphScaleInteraction {
     }
   }
 
-  _onMouseUp() {
+  _onPointerUp() {
     this._dragging = null;
     this._mode = null;
     this._startMouse = null;
     this._startRange = null;
     this.renderer.svg.style.cursor = '';
-    window.removeEventListener('mousemove', this._onMouseMove);
-    window.removeEventListener('mouseup', this._onMouseUp);
   }
 
   destroy() {
-    this.renderer.svg.removeEventListener('mousedown', this._onMouseDown);
-    this.renderer.svg.removeEventListener('mousemove', this._onMouseMoveHover);
-    window.removeEventListener('mousemove', this._onMouseMove);
-    window.removeEventListener('mouseup', this._onMouseUp);
+    this.renderer.svg.removeEventListener('pointerdown', this._onPointerDown);
+    this.renderer.svg.removeEventListener('pointermove', this._onPointerMove);
+    this.renderer.svg.removeEventListener('pointerup', this._onPointerUp);
+    this.renderer.svg.removeEventListener('lostpointercapture', this._onPointerUp);
   }
 }

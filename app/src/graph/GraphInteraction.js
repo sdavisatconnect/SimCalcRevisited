@@ -24,8 +24,8 @@ export class GraphInteractionManager {
     // prevents reading dataTransfer during dragover)
     this._dragToolTarget = null;
 
-    this._onMouseMove = this._handleMouseMove.bind(this);
-    this._onMouseUp = this._handleMouseUp.bind(this);
+    this._onPointerMove = this._handlePointerMove.bind(this);
+    this._onPointerUp = this._handlePointerUp.bind(this);
 
     // Listen for tool changes from ToolSidebar
     this.bus.on('tool:changed', ({ tool }) => {
@@ -52,7 +52,7 @@ export class GraphInteractionManager {
     this.graphs.push(entry);
 
     const svg = component.svg;
-    svg.addEventListener('mousedown', (e) => this._handleMouseDown(e, entry));
+    svg.addEventListener('pointerdown', (e) => this._handlePointerDown(e, entry));
     svg.addEventListener('click', (e) => this._handleClick(e, entry));
 
     // Drag-and-drop from sidebar tools
@@ -269,7 +269,7 @@ export class GraphInteractionManager {
     return comp.scalePopover && comp.scalePopover.isLocked;
   }
 
-  _handleMouseDown(e, graphEntry) {
+  _handlePointerDown(e, graphEntry) {
     // Only drag in pointer mode
     if (this.activeTool !== 'pointer') return;
     // Don't allow editing on locked graphs
@@ -315,11 +315,13 @@ export class GraphInteractionManager {
       };
     }
 
-    document.addEventListener('mousemove', this._onMouseMove);
-    document.addEventListener('mouseup', this._onMouseUp);
+    // Use pointer capture on the SVG so move/up events stay with this element
+    graphEntry.component.svg.setPointerCapture(e.pointerId);
+    graphEntry.component.svg.addEventListener('pointermove', this._onPointerMove);
+    graphEntry.component.svg.addEventListener('pointerup', this._onPointerUp);
   }
 
-  _handleMouseMove(e) {
+  _handlePointerMove(e) {
     if (!this.dragState) return;
     e.preventDefault();
 
@@ -408,12 +410,15 @@ export class GraphInteractionManager {
     actor.updateFromVelocity(velFn);
   }
 
-  _handleMouseUp() {
-    if (this.dragState && this.dragState.element) {
-      this.dragState.element.classList.remove('dragging');
+  _handlePointerUp(e) {
+    if (this.dragState) {
+      if (this.dragState.element) {
+        this.dragState.element.classList.remove('dragging');
+      }
+      const svg = this.dragState.graphEntry.component.svg;
+      svg.removeEventListener('pointermove', this._onPointerMove);
+      svg.removeEventListener('pointerup', this._onPointerUp);
     }
     this.dragState = null;
-    document.removeEventListener('mousemove', this._onMouseMove);
-    document.removeEventListener('mouseup', this._onMouseUp);
   }
 }
