@@ -137,6 +137,7 @@ export class Panel {
     };
 
     const onPointerMove = (e) => {
+      if (!this.el.classList.contains('dragging')) return;
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
       this.el.style.left = (startLeft + dx) + 'px';
@@ -168,6 +169,7 @@ export class Panel {
     };
 
     const onPointerMove = (e) => {
+      if (!this.el.classList.contains('resizing')) return;
       const w = Math.max(200, startW + (e.clientX - startX));
       const h = Math.max(120, startH + (e.clientY - startY));
       this.el.style.width = w + 'px';
